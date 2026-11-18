@@ -1,0 +1,43 @@
+{
+  "name": "vektra",
+  "productName": "VEKTRA",
+  "version": "1.16.1",
+  "description": "VEKTRA – retning, fremdrift og kontroll i yrkesfagundervisningen",
+  "author": "Thomas Grøndahl",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "no.malakoff.vektra",
+    "productName": "VEKTRA",
+    "copyright": "Thomas Grøndahl",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "src/**/*", "package.json"],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.png",
+      "artifactName": "VEKTRA-oppsett-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VEKTRA",
+      "language": "1044"
+    },
+    "publish": [{ "provider": "github", "owner": "Thogrnd", "repo": "VEKTRA", "releaseType": "release" }]
+  }
+}

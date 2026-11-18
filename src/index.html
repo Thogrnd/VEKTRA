@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: klar-media:; media-src 'self' blob: klar-media:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>VEKTRA</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand">
+      <span class="logo">V</span>
+      <div><b>VEKTRA</b><small>Retning · Fremdrift · Kontroll</small></div>
+    </div>
+    <div class="profil" id="profil" title="Innstillinger">
+      <div class="avatar" id="avatar">?</div>
+      <div class="v">Velkommen,</div>
+      <div class="n" id="profilnavn"></div>
+      <div class="r" id="profilrolle"></div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="lagrestatus" id="lagrestatus">Laster …</div>
+  </aside>
+
+  <section class="main">
+    <div class="top">
+      <button class="ikonknapp" id="skjulmeny" title="Skjul eller vis meny"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <label class="sok"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input id="sok" placeholder="Søk i VEKTRA – sider, elever, prosjekter, avvik …" autocomplete="off">
+        <div class="sokliste skjult" id="sokliste"></div>
+      </label>
+      <span class="spacer"></span>
+      <button class="chip skjult" id="laerermodus" title="Lås lærermodus" style="cursor:pointer;color:var(--green);border-color:rgba(62,224,143,.4)">🔓 Lærermodus – lås</button>
+      <span class="chip skjul" id="dato"></span>
+    </div>
+    <div class="faner" id="faner" role="tablist"></div>
+    <div class="innhold" id="innhold"></div>
+  </section>
+</div>
+<div class="utskrift" id="utskrift"></div>
+
+<script src="core.js"></script>
+<script src="moduler/oversikt.js"></script>
+<script src="moduler/register.js"></script>
+<script src="moduler/klassekart.js"></script>
+<script src="moduler/prosjekter.js"></script>
+<script src="moduler/arbeidsmiljo.js"></script>
+<script src="moduler/risiko.js"></script>
+<script src="moduler/hms.js"></script>
+<script src="moduler/hms-risiko.js"></script>
+  <script src="moduler/opplaering.js"></script>
+<script src="moduler/logg.js"></script>
+  <script src="moduler/innstillinger.js"></script>
+<script src="start.js"></script>
+</body>
+</html>
