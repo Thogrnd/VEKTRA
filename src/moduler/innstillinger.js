@@ -165,7 +165,7 @@ function leggTilEksempeldata() {
   // verktøyopplæring: noen eksempler
   if (!d.opplaering) d.opplaering = [];
   const voSt = (n, g) => ({ teori: dato(n), demo: dato(n), ovelse: g >= 1 ? dato(n + 2) : '', godkjent: g >= 2 ? dato(n + 4) : '' });
-  d.elever.slice(0, 5).forEach((e, i) => [['Kappsag', 2], ['Spikerpistol', i === 3 ? 1 : 2], ['Sirkelsag', i % 2 ? 1 : 2], ['Drill/skrutrekker', 2]].forEach(([mk, g], j) => {
+  d.elever.slice(0, 5).forEach((e, i) => [['Kapp- og gjersag/listesager', 2], ['Spikerpistol', i === 3 ? 1 : 2], ['Sirkelsag', i % 2 ? 1 : 2], ['Batteridrill', 2]].forEach(([mk, g], j) => {
     if ((i + j) % 4 === 3) return;
     const pk = (VO_STD_MALER[mk] || VO_FELLES).map(t => ({ tekst: t, forklart: true, utfort: g >= 2 }));
     d.opplaering.push({ id: nyId(), kode: `VO-${dato(0).slice(0, 4)}-${String(d.opplaering.length + 1).padStart(3, '0')}`, opprettet: new Date().toISOString(), elev: e.id, maskin: mk, instruktor: meg(),

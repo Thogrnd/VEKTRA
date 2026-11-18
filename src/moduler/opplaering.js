@@ -5,17 +5,43 @@ const VO_STEG = [['teori', 'Teori', 'Bruksanvisning og farer'], ['demo', 'Demons
 const VO_KOMPMAL = 'Velge og bruke maskiner og verktøy til ulike arbeidsoppdrag og følge anvisning for bruk og håndtering';   // BAT01-03, Udir
 const VO_STATUS = { g: ['Godkjent', 'ok'], u: ['Under opplæring', 'gul'], x: ['Må fornyes', 'hoy'], i: ['Ikke startet', ''] };
 /* Forslag til sjekkpunkter. Kan endres under «Sjekkpunkter …» */
+/* Verktøyene står i samme rekkefølge som på skolens skjema «Gjennomført instruks og opplæring» */
 const VO_STD_MALER = {
-  'Kappsag': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Sjekke at vern og bladbeskyttelse fungerer', 'Velge riktig sagblad og sjekke at det er helt',
-    'Bruke nødstopp og vite hvor den er', 'Feste emnet riktig og holde hendene unna bladet', 'Vente til bladet har stoppet før emnet løftes', 'Stå i riktig arbeidsstilling', 'Rydde og rengjøre maskinen etter bruk'],
-  'Sirkelsag': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Sjekke at pendelvernet går fritt tilbake', 'Stille riktig skjæredybde', 'Sikre at emnet ligger støtt og at kappet del faller fritt',
-    'Holde i begge håndtakene og stå til siden for sagsporet', 'Vente til bladet har stoppet før saga legges ned', 'Trekke ut støpselet / ta ut batteriet ved bladskift'],
   'Spikerpistol': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Kjenne forskjell på enkeltskudd og kontaktutløser', 'Laste og bytte spiker riktig',
     'Holde pistolen vinkelrett mot emnet og hånden unna skuddretningen', 'Aldri peke pistolen mot noen', 'Koble fra luft/batteri ved feilretting og pause'],
-  'Drill/skrutrekker': ['Velge og bruke riktig verneutstyr (briller)', 'Velge riktig bits eller bor', 'Stille inn riktig moment og hastighet', 'Holde godt og stå stødig når boret kan låse seg', 'Ta ut batteriet ved bytte av bits'],
-  'Bordsag': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Stille inn kløyvkniv og bladvern', 'Bruke anlegg og skyvepinne', 'Aldri stå rett bak bladet (tilbakeslag)',
-    'Bruke nødstopp og vite hvor den er', 'Vente til bladet har stoppet før avkapp fjernes', 'Rydde og rengjøre maskinen etter bruk']
+  'Batteridrill': ['Velge og bruke riktig verneutstyr (briller)', 'Velge riktig bits eller bor', 'Stille inn riktig moment og hastighet', 'Holde godt og stå stødig når boret kan låse seg', 'Ta ut batteriet ved bytte av bits'],
+  'Stikksag': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Velge riktig sagblad til materialet og feste det riktig', 'Sjekke at det ikke ligger ledninger eller rør bak der det skal sages',
+    'Holde foten (sålen) flatt mot emnet hele tiden', 'Holde den andre hånden unna bladet og under emnet', 'Vente til bladet har stoppet før saga løftes ut', 'Ta ut batteriet / støpselet ved bladskift'],
+  'Sirkelsag': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Sjekke at pendelvernet går fritt tilbake', 'Stille riktig skjæredybde', 'Sikre at emnet ligger støtt og at kappet del faller fritt',
+    'Holde i begge håndtakene og stå til siden for sagsporet', 'Vente til bladet har stoppet før saga legges ned', 'Trekke ut støpselet / ta ut batteriet ved bladskift'],
+  'Multikutter/feinsag': ['Velge og bruke riktig verneutstyr (briller, hørselvern, støvmaske ved sliping)', 'Velge riktig blad eller slipeplate og feste det riktig', 'Sjekke at det ikke ligger ledninger eller rør bak der det skal skjæres',
+    'Starte på lav hastighet og la verktøyet gjøre jobben', 'Holde den andre hånden unna bladet', 'Være forsiktig med varme blader etter bruk', 'Ta ut batteriet / støpselet ved bladskift'],
+  'Elektrisk høvel': ['Velge og bruke riktig verneutstyr (briller, hørselvern, støvmaske)', 'Sjekke at knivene er hele og godt festet', 'Stille inn riktig spåndybde',
+    'Feste emnet godt og høvle med fibrene', 'Holde i begge håndtakene og legge trykk på framre sko ved start', 'Vente til knivene har stoppet før høvelen legges ned', 'Sjekke at emnet er fritt for spiker og skruer'],
+  'Vinkelsliper': ['Velge og bruke riktig verneutstyr (briller/visir, hørselvern, hansker, støvmaske)', 'Velge riktig skive og sjekke at den er hel og passer maskinens turtall', 'Sjekke at vernet sitter riktig og vender mot deg',
+    'Bruke sidehåndtaket og holde med begge hender', 'Passe på gnistretningen (brannfare og andre personer)', 'Aldri bruke kappeskive til sliping fra siden', 'Vente til skiva har stoppet før maskinen legges ned', 'Trekke ut støpselet / ta ut batteriet ved skivebytte'],
+  'Kapp- og gjersag/listesager': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Sjekke at vern og bladbeskyttelse fungerer', 'Velge riktig sagblad og sjekke at det er helt',
+    'Bruke nødstopp og vite hvor den er', 'Feste emnet riktig og holde hendene unna bladet', 'Stille inn og låse vinkel og gjæring før start', 'Vente til bladet har stoppet før emnet løftes', 'Stå i riktig arbeidsstilling', 'Rydde og rengjøre maskinen etter bruk'],
+  'Bajonettsag': ['Velge og bruke riktig verneutstyr (briller, hørselvern, hansker)', 'Velge riktig blad til materialet og feste det riktig', 'Sjekke at det ikke ligger ledninger eller rør der det skal sages',
+    'Holde foten (anlegget) mot emnet så saga ikke slår', 'Holde med begge hender og stå stødig', 'Passe på at deler som kappes ikke faller på noen', 'Ta ut batteriet / støpselet ved bladskift'],
+  'Smergel/slipemaskin': ['Velge og bruke riktig verneutstyr (briller/visir, hørselvern)', 'Sjekke at slipeskiva er hel (klangprøve) og at vernet er på', 'Stille verktøyanlegget 1–3 mm fra skiva',
+    'Stå til siden for skiva ved oppstart', 'Holde emnet godt og bruke anlegget', 'Kjøle emnet og passe på varme deler', 'Ikke slipe på siden av skiva', 'Slå av maskinen og vente til skiva har stoppet'],
+  'Overfres': ['Velge og bruke riktig verneutstyr (briller, hørselvern, støvmaske)', 'Velge riktig fres, feste den godt og trekke ut støpselet ved fresbytte', 'Stille inn riktig fresedybde og turtall',
+    'Feste emnet godt og fjerne spiker og skruer', 'Frese i riktig retning (mot rotasjonen)', 'Holde i begge håndtakene', 'Vente til fresen har stoppet før maskinen løftes'],
+  'Fallsele': ['Vite når fallsikring skal brukes (fallhøyde over 2 meter)', 'Kontrollere selen, stroppen og karabinene før bruk', 'Ta på og stramme selen riktig',
+    'Feste i godkjent forankringspunkt over deg', 'Kjenne til fritt fall og pendelfare', 'Vite at en sele som har tatt et fall skal kasseres', 'Henge selen tørt og luftig etter bruk'],
+  'Stillas, stiger og arbeidsbukker': ['Kontrollere stillaset før bruk (grønt skilt / kontrollkort)', 'Aldri endre på stillaset uten opplæring', 'Holde stillaset ryddig og ikke overbelaste det',
+    'Velge riktig stige og sette den med riktig vinkel (ca. 1:4)', 'Sikre stigen mot å skli og stå minst tre trinn under toppen', 'Holde tre-punkts kontakt i stigen', 'Sjekke at arbeidsbukkene står støtt og er hele', 'Bruke rekkverk eller fallsikring der det kreves'],
+  'Bygningssag (gjerdesag)': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Stille inn kløyvkniv og bladvern', 'Bruke anlegg og skyvepinne', 'Aldri stå rett bak bladet (tilbakeslag)',
+    'Bruke nødstopp og vite hvor den er', 'Vente til bladet har stoppet før avkapp fjernes', 'Rydde og rengjøre maskinen etter bruk'],
+  'Gjengemaskin': ['Velge og bruke riktig verneutstyr (briller, hansker uten løse deler)', 'Feste røret godt i chucken / skruestikka', 'Velge riktig gjengebakke og montere den riktig',
+    'Bruke nok skjæreolje', 'Bruke fotbryteren og holde hendene unna roterende deler', 'Ikke ha løse klær, smykker eller langt hår som kan sette seg fast', 'Rydde spon og olje etter bruk'],
+  'Betongblander': ['Velge og bruke riktig verneutstyr (briller, hansker, støvmaske)', 'Sjekke at blanderen står stødig og at kabel og jordfeilbryter er i orden', 'Kjenne til faren ved sement (etsende for hud og øyne)',
+    'Aldri stikke hender eller verktøy inn i trommelen mens den går', 'Fylle i riktig rekkefølge og ikke overfylle', 'Slå av og trekke ut støpselet før rengjøring', 'Rengjøre trommelen rett etter bruk']
 };
+/* Gamle navn fra før skjemaet ble lagt inn → nye navn */
+const VO_GAMLE_NAVN = { 'Kappsag': 'Kapp- og gjersag/listesager', 'Drill/skrutrekker': 'Batteridrill', 'Bordsag': 'Bygningssag (gjerdesag)' };
+const voNyttNavn = n => VO_GAMLE_NAVN[n] || n;
 const VO_FELLES = ['Velge og bruke riktig verneutstyr', 'Lese og forstå bruksanvisningen', 'Sjekke at maskinen og vernet er helt før bruk', 'Vite hvor strømbryter eller nødstopp er',
   'Bruke maskinen i riktig arbeidsstilling', 'Rydde og rengjøre etter bruk'];
 let voKlasse = '';
@@ -25,8 +51,11 @@ const voPunkterFor = maskin => voMaler()[maskin] || VO_FELLES;
 /* Maskinene som vises: maler + elektroverktøy og maskiner i verktøy-lista + det som er brukt i opplæringer */
 function voMaskiner() {
   const d = D();
-  return [...new Set([...Object.keys(voMaler()), ...(d.verktoy || []).filter(v => ['Elektroverktøy', 'Maskin'].includes(v.type)).map(v => v.navn), ...d.opplaering.map(o => o.maskin)])]
-    .filter(Boolean).sort(sortNavn);
+  /* Verktøyene med sjekkpunkter står først i skjemaets rekkefølge, resten alfabetisk etter */
+  const maler = Object.keys(voMaler());
+  const andre = [...new Set([...(d.verktoy || []).filter(v => ['Elektroverktøy', 'Maskin'].includes(v.type)).map(v => voNyttNavn(v.navn)), ...d.opplaering.map(o => o.maskin)])]
+    .filter(x => x && !maler.includes(x)).sort(sortNavn);
+  return [...maler, ...andre];
 }
 function voStatus(o) {
   if (!o) return 'i';
@@ -235,5 +264,19 @@ registrer('hms-kompetanse', el => {
 
 function migrerOpplaering(d) {
   if (!Array.isArray(d.opplaering)) d.opplaering = [];
-  d.opplaering.forEach(o => { if (!o.steg) o.steg = {}; if (!Array.isArray(o.punkter)) o.punkter = []; });
+  d.opplaering.forEach(o => { if (!o.steg) o.steg = {}; if (!Array.isArray(o.punkter)) o.punkter = []; o.maskin = voNyttNavn(o.maskin); });
+  /* Én gang: legg inn skolens verktøyliste og behold egne endringer og egne maskiner */
+  if ((d.opplMalerVer || 1) < 2) {
+    const gamle = d.opplMaler || {};
+    if (Object.keys(gamle).length) {
+      const nye = {};
+      for (const [navn, punkter] of Object.entries(VO_STD_MALER)) {
+        const gammeltNavn = Object.keys(VO_GAMLE_NAVN).find(k => VO_GAMLE_NAVN[k] === navn);
+        nye[navn] = gamle[navn] || (gammeltNavn && gamle[gammeltNavn]) || punkter;
+      }
+      for (const [navn, punkter] of Object.entries(gamle)) if (!VO_GAMLE_NAVN[navn] && !nye[navn]) nye[navn] = punkter;
+      d.opplMaler = nye;
+    }
+    d.opplMalerVer = 2;
+  }
 }
