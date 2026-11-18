@@ -55,7 +55,7 @@ registrer('innstillinger', async el => {
     ${kort('Sikkerhetskopi', `
       <p class="smaa" style="margin-top:0">VEKTRA tar en automatisk kopi hver dag i undermappen «Sikkerhetskopier» (de siste 14 dagene). Her kan du også lagre en kopi selv, eller hente tilbake en kopi.</p>
       <div class="verktoylinje"><button class="btn" id="in-eksport">Lagre sikkerhetskopi …</button><button class="btn sek" id="in-import">Gjenopprett fra fil …</button></div>`, 's6 oransje')}
-    ${kort('Lærerpassord', opplast ? `
+    ${kort('Lærerpassord', TESTMODUS ? '<p class="smaa" style="margin-top:0">Lærerpassordet er slått av mens programmet testes (testmodus). Alle sider er åpne for alle.</p>' : opplast ? `
       <div class="rad"><label class="felt"><span>Nytt passord</span><input type="password" id="pw1"></label><label class="felt"><span>Gjenta</span><input type="password" id="pw2"></label><button class="btn auto" id="pw-lagre" style="margin-bottom:12px">Bytt passord</button></div>`
       : '<p class="smaa" style="margin-top:0">Lås opp lærermodus (for eksempel ved å åpne Klassekart) for å bytte passord.</p>', 's6 rosa')}
     ${kort('Prøv VEKTRA', `

@@ -197,17 +197,17 @@ ipcMain.handle('fil:bildemappe', async () => {
 });
 
 // Skriv ut det som ligger i utskriftsområdet (vanlig utskriftsdialog)
-ipcMain.handle('fil:skrivUt', () => new Promise(res => {
-  vindu.webContents.print({ silent: false, printBackground: true, landscape: true }, (ok, feil) => res(ok ? { ok: true } : { ok: false, feil: feil === 'cancelled' ? '' : feil }));
+ipcMain.handle('fil:skrivUt', (e, staende) => new Promise(res => {
+  vindu.webContents.print({ silent: false, printBackground: true, landscape: !staende }, (ok, feil) => res(ok ? { ok: true } : { ok: false, feil: feil === 'cancelled' ? '' : feil }));
 }));
 
-ipcMain.handle('fil:pdf', async (e, navn) => {
+ipcMain.handle('fil:pdf', async (e, navn, staende) => {
   const r = await dialog.showSaveDialog(vindu, {
     defaultPath: path.join(app.getPath('documents'), navn),
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
   if (r.canceled || !r.filePath) return null;
-  const pdf = await vindu.webContents.printToPDF({ printBackground: true, landscape: true, pageSize: 'A4' });
+  const pdf = await vindu.webContents.printToPDF({ printBackground: true, landscape: !staende, pageSize: 'A4' });
   fs.writeFileSync(r.filePath, pdf);
   shell.openPath(r.filePath);
   return r.filePath;

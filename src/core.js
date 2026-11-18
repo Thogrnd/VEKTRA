@@ -5,6 +5,9 @@ const api = window.klarApi || null;            // finnes bare i det installerte 
 /* TESTKNAPPER: «Slett valgte» i avvik og risikovurderinger. Bare for testing.
    SKAL FJERNES i endelig versjon: sett til false (eller slett alt som bruker TESTKNAPPER). */
 const TESTKNAPPER = true;
+/* TESTMODUS: alle lærersider er åpne uten passord mens programmet testes. Elevene får da tilgang til alt.
+   SKAL SLÅS AV i endelig versjon: sett til false, så kreves lærerpassordet igjen. */
+const TESTMODUS = true;
 const STANDARD_PW = '63f61a28f36649c3630ad9dba1718dbf2076368e63e6594202860fdf4f8aeaf4';      // felles lærerpassord: Malakoff
 const GAMMELT_PW = '25a2c693d1d9835d8f9c6636fa7e60ec7c4bbfc7a49a5bd735bc889f3638a7c4';      // tidligere standardpassord
 
@@ -267,9 +270,10 @@ const MENY = [
   { id: 'klassekart', navn: 'Klassekart', ikon: 'kart', farge: 'var(--green)', laerer: true, under: [
     { id: 'kk-kart', navn: 'Klassekart' },
     { id: 'kk-makker', navn: 'Makkerpar' }] },
-  { id: 'elevlogg', navn: 'Elevlogg', ikon: 'logg', farge: 'var(--green)', under: [
+  { id: 'elevlogg', navn: 'Elevmappe', ikon: 'logg', farge: 'var(--green)', under: [
     { id: 'lg-loggbok', navn: 'Loggbok' },
-    { id: 'lg-oversikt', navn: 'Lærerens oversikt', laerer: true }] },
+    { id: 'lg-oversikt', navn: 'Lærerens oversikt', laerer: true },
+    { id: 'hms-kompetanse', navn: 'Kompetanse og opplæring', laerer: true }] },
   { id: 'ledelse', navn: 'Ledelse av prosjekter', ikon: 'prosjekt', farge: 'var(--purple)', under: [
     { id: 'lp-prosjekter', navn: 'Prosjekter' },
     { id: 'lp-oppgaver', navn: 'Oppgavetavle' },
@@ -285,7 +289,6 @@ const MENY = [
     { id: 'hms-regler', navn: 'Regler og rutiner' },
     { id: 'hms-risiko', navn: 'Risikovurderinger' },
     { id: 'hms-utstyr', navn: 'Utstyr og stoffer' },
-    { id: 'hms-kompetanse', navn: 'Kompetanse og opplæring', laerer: true },
     { id: 'hms-oppfolging', navn: 'Oppfølging' }] },
   { seksjon: 'System' },
   { id: 'innstillinger', navn: 'Innstillinger', ikon: 'innst', farge: 'var(--cyan)' },
@@ -305,7 +308,7 @@ const registrer = (id, fn) => { SIDE[id] = fn; };
 let faner = ['hjem'];
 let aktiv = 'hjem';
 const apne = new Set(['ledelse']);
-let opplast = false;
+let opplast = TESTMODUS;
 const erLast = id => !opplast && SIDER[id]?.laerer;
 
 function tegnMeny() {
@@ -463,8 +466,8 @@ function koblelaas() {
   });
 }
 function settLaas(apen) {
-  opplast = apen;
-  $('#laerermodus').classList.toggle('skjult', !apen);
+  opplast = apen || TESTMODUS;
+  $('#laerermodus').classList.toggle('skjult', !opplast);
   if (apen) { const f = SIDER[aktiv]?.forelder; if (f) apne.add(f.id); }
   else if (SIDER[aktiv]?.laerer) { /* blir stående på låseskjermen */ }
   tegnMeny(); tegnFaner(); visSide();
@@ -592,18 +595,20 @@ async function apneBildemappe() {
 /* Skriv ut: legger html i utskriftsområdet og åpner utskriftsdialogen */
 /* Skriv ut: viser en forhåndsvisning med knapper for utskrift og PDF.
    Utskriften bruker innholdet i #utskrift (se @media print i style.css). */
-function skrivUt(html, tittel = 'Utskrift') {
+function skrivUt(html, tittel = 'Utskrift', { staende = false } = {}) {
   $('#utskrift').innerHTML = html;
+  let so = $('#sideoppsett'); if (!so) { so = document.createElement('style'); so.id = 'sideoppsett'; document.head.appendChild(so); }
+  so.textContent = staende ? '@media print{@page{size:A4 portrait;margin:12mm}}' : '';
   $$('.forhand-bak').forEach(x => x.remove());
   const v = document.createElement('div');
   v.className = 'visning forhand-bak';
   v.innerHTML = `<div class="forhand-topp">
-      <b>Forhåndsvisning</b><span class="smaa">${api ? 'A4 liggende' : 'Utskrift og PDF virker i det installerte programmet. I nettleseren kan utskrift være blokkert.'}</span>
+      <b>Forhåndsvisning</b><span class="smaa">${api ? (staende ? 'A4 stående' : 'A4 liggende') : 'Utskrift og PDF virker i det installerte programmet. I nettleseren kan utskrift være blokkert.'}</span>
       <span class="spacer"></span>
       <button class="btn" id="fh-skriv">Skriv ut</button>
       ${api ? '<button class="btn sek" id="fh-pdf">Lagre som PDF</button>' : ''}
       <button class="btn sek" id="fh-lukk">Lukk (Esc)</button></div>
-    <div class="forhand">${html}</div>`;
+    <div class="forhand ${staende ? 'staende' : ''}">${html}</div>`;
   document.body.appendChild(v);
   const lukk = () => { v.remove(); document.removeEventListener('keydown', esc_); };
   const esc_ = e => { if (e.key === 'Escape') lukk(); };
@@ -611,14 +616,14 @@ function skrivUt(html, tittel = 'Utskrift') {
   $('#fh-lukk', v).onclick = lukk;
   $('#fh-skriv', v).onclick = async () => {
     try {
-      if (api && api.skrivUt) { const r = await api.skrivUt(); if (r && r.feil) toast('Utskriften ble avbrutt: ' + r.feil, true); }
+      if (api && api.skrivUt) { const r = await api.skrivUt(staende); if (r && r.feil) toast('Utskriften ble avbrutt: ' + r.feil, true); }
       else window.print();
     } catch (e) { toast('Utskrift er ikke tilgjengelig her. Bruk det installerte programmet.', true); }
   };
   const pdf = $('#fh-pdf', v);
   if (pdf) pdf.onclick = async () => {
     const navn = (tittel || 'Utskrift').replace(/[\\/:*?"<>|]/g, '').slice(0, 100) + '.pdf';
-    const r = await api.lagrePdf(navn);
+    const r = await api.lagrePdf(navn, staende);
     if (r) toast('PDF er lagret og åpnet.');
   };
 }

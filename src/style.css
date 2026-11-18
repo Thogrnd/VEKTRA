@@ -585,3 +585,15 @@ body.lys .gantt-farge-prosjekt{background:linear-gradient(90deg,rgba(27,30,60,.3
 .vo-matrise td{white-space:nowrap}
 .vo-celle{background:none;border:0;padding:2px;cursor:pointer;border-radius:8px}
 .vo-celle:hover{background:var(--felt)}
+
+/* ---------- Egenerklæringsskjema HMS (A4 stående) ---------- */
+.forhand.staende{max-width:794px}
+.ek{color:#000;font-family:Calibri,"Segoe UI",Arial,sans-serif;font-size:11pt}
+.ek .ek-topp{text-align:center;text-decoration:underline;font-size:10pt}
+.ek .ek-tittel{text-align:center;font-size:20pt;text-decoration:underline;margin:10px 0 4px}
+.ek .ek-under{text-align:center;font-size:13pt;text-decoration:underline;margin-bottom:12px}
+.ek .ek-linje{border-bottom:1px solid #000;padding:3px 2px 1px;margin-top:4px;min-height:20px}
+.ek .ek-overskrift{text-decoration:underline;margin-top:14px}
+.ek table.ek-tabell{width:100%;border-collapse:collapse;margin-top:12px}
+.forhand .ek th,.forhand .ek td,.utskrift .ek th,.utskrift .ek td,.ek th,.ek td{border:1px solid #000;color:#000;padding:2px 6px;height:21px;font-size:10.5pt;background:#fff!important;text-align:left}
+.ek th{font-weight:400;text-decoration:underline}

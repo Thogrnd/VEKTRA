@@ -1,4 +1,4 @@
-/* VEKTRA – modul: Verktøyopplæring (HMS → Kompetanse og opplæring) */
+/* VEKTRA – modul: Verktøyopplæring (Elevmappe → Kompetanse og opplæring) */
 'use strict';
 
 const VO_STEG = [['teori', 'Teori', 'Bruksanvisning og farer'], ['demo', 'Demonstrasjon', 'Lærer viser'], ['ovelse', 'Øving under tilsyn', 'Eleven prøver'], ['godkjent', 'Godkjent', 'For selvstendig bruk']];
@@ -106,6 +106,7 @@ async function voRediger(o, { elev = '', maskin = '' } = {}) {
         </div>
         <div class="laasfeil" id="mfeil"></div>
         <div class="knapper">${ny ? '' : '<button type="button" class="btn fare" data-slett style="margin-right:auto">Slett</button>'}
+          <button type="button" class="btn sek" data-egen title="Skolens egenerklæringsskjema for eleven, med alle verktøy">Skriv ut egenerklæring</button>
           <button type="button" class="btn sek" data-bevis>Skriv ut bevis</button>
           <button type="button" class="btn sek" data-avbryt>Avbryt</button><button class="btn" type="submit">Lagre</button></div>
       </form>`, { bred: true });
@@ -141,6 +142,7 @@ async function voRediger(o, { elev = '', maskin = '' } = {}) {
 
     const samle = () => ({ ...v, elev: elevV(), instruktor: instrV(), maskin: f.elements.maskin.value, antall: Math.max(0, +f.elements.antall.value || 0),
       fornyes: f.elements.fornyes.value, kommentar: f.elements.kommentar.value.trim(), elevBekreftet: f.elements.elevBekreftet.checked });
+    $('[data-egen]', m.el).onclick = () => { const u = samle(); if (!u.elev) { $('#mfeil', m.el).textContent = 'Velg elev først.'; return; } voSkrivEgenerklaering([u.elev]); };
     $('[data-bevis]', m.el).onclick = () => { const u = samle(); if (!u.elev) { $('#mfeil', m.el).textContent = 'Velg elev først.'; return; } voSkrivBevis([{ ...u, kode }]); };
     f.addEventListener('submit', async e => {
       e.preventDefault();
@@ -199,6 +201,41 @@ function voRedigerMaler(start = '') {
 }
 
 /* ============ Utskrift ============ */
+/* Egenerklæringsskjema HMS: samme oppsett som skolens papirskjema, ett ark per elev.
+   VEKTRA fyller ut navn, dato for godkjent, kommentarer og instruktører. Signaturene skrives for hånd. */
+const VO_SKJEMA_TOPP = 'Malakoff VGS, Vg1 byggfag:';
+function voSkrivEgenerklaering(elevIder) {
+  const maskiner = voMaskiner();
+  const rader = Math.max(20, maskiner.length);
+  const ark = elevIder.map(id => {
+    const p = finnPerson(id); const navn = p ? p.navn : personNavn(id);
+    const klasse = p && p.klasseId ? klasseNavn(p.klasseId) : '';
+    const mine = D().opplaering.filter(o => o.elev === id);
+    const kommentarer = mine.filter(o => (o.kommentar || '').trim()).map(o => `${o.maskin}: ${o.kommentar.trim()}`);
+    const instr = [...new Set(mine.map(o => personNavn(o.instruktor)).filter(Boolean))];
+    const linjer = Array.from({ length: rader }, (_, i) => {
+      const mk = maskiner[i]; if (!mk) return '<tr><td></td><td></td><td></td><td></td></tr>';
+      const o = voFinn(id, mk); const dato = o && o.steg.godkjent ? visDato(o.steg.godkjent) : '';
+      return `<tr><td>${esc(mk)}</td><td>${dato}</td><td></td><td></td></tr>`;
+    }).join('');
+    const komm = [...kommentarer, '', ''].slice(0, Math.max(2, kommentarer.length)).map(k => `<div class="ek-linje">${esc(k) || '&nbsp;'}</div>`).join('');
+    return `<div class="ek">
+      <div class="ek-topp">${esc(VO_SKJEMA_TOPP)}</div>
+      <div class="ek-tittel">EGENERKLÆRINGSSKJEMA HMS</div>
+      <div class="ek-under">Bruk av maskiner og utstyr for byggteknikk. Sikkerhetsopplæring.</div>
+      <div class="ek-linje">Jeg, <b>${esc(navn)}</b>${klasse ? ` (${esc(klasse)})` : ''},</div>
+      <div class="ek-linje">erklærer herved å ha fått opplæring og brukerkurs i følgende verktøy, basert på beskrevne instrukser.</div>
+      <table class="ek-tabell"><thead><tr><th style="width:44%">Gjennomført instruks og opplæring:</th><th style="width:14%">Dato:</th><th>Signatur elev:</th><th>Signatur lærer:</th></tr></thead><tbody>${linjer}</tbody></table>
+      <div class="ek-overskrift">Kommentarer fra faglærere / instruktører:</div>${komm}
+      <div class="ek-overskrift">Gjennomgått og underskrevet:</div>
+      <div class="ek-linje">Sted og dato:</div>
+      <div class="ek-linje">Elevens navn: ${esc(navn)}</div>
+      <div class="ek-linje">Faglærere / instruktører: ${esc(instr.join(', '))}</div>
+    </div>`;
+  });
+  skrivUt(ark.join('<div class="sideskift"></div>'), elevIder.length === 1 ? `Egenerklæring HMS ${personNavn(elevIder[0])}` : 'Egenerklæring HMS', { staende: true });
+}
+
 function voSkrivBevis(liste) {
   skrivUt(liste.map(o => `<h1>Opplæringsbevis – ${esc(o.maskin)}</h1>
     <div class="meta">${esc(o.kode || '')} · skrevet ut ${visDato(idag())}</div>
@@ -235,6 +272,7 @@ registrer('hms-kompetanse', el => {
     `<select id="vo-klasse" style="width:auto">${klasser.map(k => `<option value="${k.id}" ${k.id === voKlasse ? 'selected' : ''}>${esc(k.navn)}</option>`).join('')}</select>
      <button class="btn sek" id="vo-maler">Sjekkpunkter …</button>
      <button class="btn sek" id="vo-skriv" ${elever.length ? '' : 'disabled'}>Skriv ut oversikt</button>
+     <button class="btn sek" id="vo-egen" ${elever.length ? '' : 'disabled'} title="Skolens egenerklæringsskjema, ett ark per elev">Egenerklæring for klassen</button>
      <button class="btn" id="vo-ny">+ Ny opplæring</button>`) +
     `<div class="grid">
       <div class="kort s3 gronn"><div class="smaa">Godkjent</div><div class="stor">${tell('g')}</div><div class="smaa">elev-maskin-kombinasjoner</div></div>
@@ -253,6 +291,7 @@ registrer('hms-kompetanse', el => {
     </div>`;
   $('#vo-klasse', el) && ($('#vo-klasse', el).onchange = e => { voKlasse = e.target.value; visSide(); });
   $('#vo-maler', el).onclick = () => voRedigerMaler();
+  $('#vo-egen', el).onclick = () => voSkrivEgenerklaering(elever.map(e => e.id));
   $('#vo-ny', el).onclick = () => voRediger(null);
   $('#vo-skriv', el).onclick = () => skrivUt(`<h1>Verktøyopplæring – ${esc(klasseNavn(voKlasse))}</h1><div class="meta">Skrevet ut ${visDato(idag())} · G = godkjent, U = under opplæring, F = må fornyes</div>
     <table><thead><tr><th>Elev</th>${maskiner.map(mk => `<th>${esc(mk)}</th>`).join('')}</tr></thead><tbody>
