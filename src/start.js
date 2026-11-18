@@ -7,7 +7,7 @@ function oppdaterProfil() {
   if (meg_ && meg_.bilde) $('#avatar').innerHTML = `<img src="${meg_.bilde}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
   else $('#avatar').textContent = initialer(i.navn || '?');
   $('#profilnavn').textContent = i.navn || 'Ukjent bruker';
-  $('#profilrolle').textContent = i.rolle === 'elev' ? `Elev${i.klasse ? ' · ' + i.klasse : ''}` : 'Lærer Vg1 bygg- og anleggsteknikk';
+  $('#profilrolle').textContent = i.rolle === 'elev' ? 'Elev' : 'Lærer';
 }
 function settTema(t) {
   document.body.classList.toggle('lys', t === 'lys');
@@ -19,6 +19,7 @@ $('#nav').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   const id = b.dataset.id;
   const m = MENY.find(x => x.id === id);
+  if (m && m.handling === 'oppdater') { sjekkOppdateringFraMeny(); return; }
   if (m && m.handling === 'tema') { settTema(document.body.classList.contains('lys') ? 'mork' : 'lys'); Lager.lagre(); return; }
   if (m && m.under) {
     if (m.laerer && !opplast) { apneSide(m.under[0].id); return; }
@@ -117,6 +118,7 @@ async function forsteOppstart() {
 /* ---------- Start ---------- */
 (async function start() {
   await Lager.start();
+  if (api && api.info) api.info().then(i => { if (i && i.versjon) $('#ver').textContent = 'ver. ' + i.versjon; }).catch(() => {});
   settTema(D().innst.tema);
   oppdaterProfil();
   if (api) api.vedOppdatering(s => { if (typeof vedOppdateringStatus === 'function') vedOppdateringStatus(s); });

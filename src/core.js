@@ -250,6 +250,7 @@ const I = {
   pil: '<path d="M9 6l6 6-6 6"/>',
   laas: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   elev: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  oppd: '<path d="M20 11a8 8 0 0 0-14.6-4.5M4 5v4h4"/><path d="M4 13a8 8 0 0 0 14.6 4.5M20 19v-4h-4"/>',
   logg: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6M9 11h4"/>',
   hms: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>'
 };
@@ -289,7 +290,8 @@ const MENY = [
   { seksjon: 'System' },
   { id: 'innstillinger', navn: 'Innstillinger', ikon: 'innst', farge: 'var(--cyan)' },
   { id: 'tema', navn: 'Bytt tema', ikon: 'tema', handling: 'tema' },
-  { id: 'hjelp', navn: 'Hjelp', ikon: 'hjelp', farge: 'var(--cyan)' }
+  { id: 'hjelp', navn: 'Hjelp', ikon: 'hjelp', farge: 'var(--cyan)' },
+  { id: 'oppdater', navn: 'Se etter oppdateringer', ikon: 'oppd', handling: 'oppdater' }
 ];
 const SIDER = {};        // id -> {navn, farge, forelder, laerer}
 MENY.forEach(m => {

@@ -2,8 +2,19 @@
 'use strict';
 
 let oppdStatus = null;
+let oppdFraMeny = false;           // sjekken ble startet fra knappen nederst i menyen
+function sjekkOppdateringFraMeny() {
+  if (!api) { toast('Oppdatering virker bare i det installerte programmet.', true); return; }
+  oppdFraMeny = true;
+  toast('Ser etter oppdateringer …');
+  vedOppdateringStatus({ type: 'sjekker' });
+  api.sjekkOppdatering();
+}
 function vedOppdateringStatus(s) {
   oppdStatus = s;
+  if (oppdFraMeny && s.type === 'ingen') { oppdFraMeny = false; toast('Du har nyeste versjon av VEKTRA.'); }
+  if (oppdFraMeny && s.type === 'feil') { oppdFraMeny = false; toast('Kunne ikke se etter oppdateringer: ' + s.melding, true); }
+  if (oppdFraMeny && s.type === 'tilgjengelig') { oppdFraMeny = false; apneSide('innstillinger'); }
   if (s.type === 'tilgjengelig') toast(`Ny versjon av VEKTRA (${s.versjon}) er klar til nedlasting under Innstillinger.`);
   if (s.type === 'klar') toast('Oppdateringen er lastet ned. Start VEKTRA på nytt for å installere.');
   if (aktiv === 'innstillinger') tegnOppdatering();
