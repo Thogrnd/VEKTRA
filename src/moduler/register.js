@@ -33,10 +33,11 @@ registrer('reg-klasser', el => {
           <button class="lenkeknapp fare" id="slett-klasse">Slett klasse</button>
         </div>
         ${dupl.size ? `<p class="smaa" style="color:var(--pink)">To eller flere elever har samme navn. Skriv dem forskjellig, for eksempel «Ola H.» og «Ola B.», så det blir tydelig hvem som er hvem.</p>` : ''}
-        ${elever.length ? `<table><thead><tr><th style="width:60px">Bilde</th><th>Navn</th><th style="width:180px">Klasse</th><th style="width:150px"></th></tr></thead><tbody>
+        ${elever.length ? `<table><thead><tr><th style="width:60px">Bilde</th><th>Navn</th><th>E-post</th><th style="width:150px">Klasse</th><th style="width:150px"></th></tr></thead><tbody>
           ${elever.map(e => `<tr data-e="${e.id}" class="${dupl.has(e.id) ? 'dupl' : ''}">
             <td><label style="cursor:pointer" title="Klikk for å velge bilde">${bildeHtml(e, 'elevbilde')}<input type="file" accept="image/*" class="ett-bilde" hidden></label></td>
             <td><input type="text" class="navn" value="${esc(e.navn)}"></td>
+            <td><input type="text" class="epost" value="${esc(e.epost || '')}" placeholder="elev@skole.no"></td>
             <td><select class="flytt">${sorterteKlasser().map(x => `<option value="${x.id}" ${x.id === e.klasseId ? 'selected' : ''}>${esc(x.navn)}</option>`).join('')}</select></td>
             <td style="text-align:right;white-space:nowrap">${e.bilde ? '<button class="lenkeknapp fjern-bilde">Fjern bilde</button> · ' : ''}<button class="lenkeknapp fare slett-elev">Slett</button></td></tr>`).join('')}
         </tbody></table>`
@@ -77,6 +78,7 @@ registrer('reg-klasser', el => {
 
   $$('tr[data-e]', el).forEach(tr => {
     const e = d.elever.find(x => x.id === tr.dataset.e);
+    $('.epost', tr).onchange = ev => { e.epost = ev.target.value.trim(); Lager.lagre(); };
     $('.navn', tr).onchange = ev => { const v = ev.target.value.trim(); if (!v) { ev.target.value = e.navn; return; } e.navn = v; Lager.lagre(); visSide(); };
     $('.flytt', tr).onchange = ev => {
       const ny = ev.target.value; const gammel = e.klasseId;
@@ -97,47 +99,58 @@ registrer('reg-klasser', el => {
 });
 
 /* ---------- Import fra tekst ---------- */
-function tolkNavneliste(tekst) {
-  return tekst.split(/\r?\n/).map(l => l.split(/[\t;,]/)[0].replace(/^\s*\d+[.)]\s*/, '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean).filter(l => !/^(navn|elev|elever|fornavn)$/i.test(l));
+/* Hver linje: navn i første kolonne, og en e-postadresse hvor som helst på linja (valgfritt) */
+const EPOST_RE = /[\w.+-]+@[\w-]+(\.[\w-]+)+/;
+function tolkLinjer(tekst) {
+  return tekst.split(/\r?\n/).map(l => {
+    const epost = (l.match(EPOST_RE) || [''])[0].toLowerCase();
+    const navn = l.replace(EPOST_RE, '').split(/[\t;,]/).map(x => x.trim()).filter(Boolean)[0] || '';
+    return { navn: navn.replace(/^\s*\d+[.)]\s*/, '').replace(/\s+/g, ' ').trim(), epost };
+  }).filter(x => x.navn && !/^(navn|elev|elever|fornavn)$/i.test(x.navn));
 }
+function tolkNavneliste(tekst) { return tolkLinjer(tekst).map(x => x.navn); }
 /* mal: 'elev' (til klasse k) eller 'laerer' */
 function importerTekst(k, mal = 'elev') {
   const m = modal(`<h2>Importer ${mal === 'elev' ? 'elever til ' + esc(k.navn) : 'lærere'}</h2>
-    <p>Velg en tekstfil med <b>ett navn per linje</b>, eller lim inn navnene her. Lister kopiert fra Excel fungerer også (bare første kolonne brukes).</p>
+    <p>Velg en tekstfil med <b>ett navn per linje</b>, eller lim inn navnene her. Lister kopiert fra Excel fungerer også: navnet tas fra første kolonne, og står det en e-postadresse på linja, blir den med.</p>
     <div class="rad" style="margin-bottom:10px"><label class="btn sek auto" style="cursor:pointer">Velg tekstfil …<input type="file" id="imp-fil" accept=".txt,.csv,text/plain" hidden></label>
       <label class="smaa auto" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="imp-forste">Ta bare med første ord (fornavnet)</label></div>
     <textarea id="imp-tekst" style="min-height:180px" placeholder="Ola&#10;Kari&#10;Per H.&#10;Per B."></textarea>
     <div id="imp-info" class="smaa" style="margin-top:8px;line-height:1.5"></div>
     <div class="knapper"><button class="btn sek" id="imp-avbryt">Avbryt</button><button class="btn" id="imp-ok" disabled>Importer</button></div>`);
   const ta = $('#imp-tekst', m.el), forste = $('#imp-forste', m.el);
-  const finnes = mal === 'elev' ? klassensElever(k.id).map(e => e.navn) : D().laerere.map(l => l.navn);
+  const personer = () => mal === 'elev' ? klassensElever(k.id) : D().laerere;
   const analyser = () => {
-    let navn = tolkNavneliste(ta.value);
-    if (forste.checked) navn = navn.map(n => n.split(' ')[0]);
-    const nye = [], fraFor = [], dobbel = [];
-    navn.forEach(n => {
-      if (finnes.some(x => likNavn(x, n))) { if (!fraFor.some(x => likNavn(x, n))) fraFor.push(n); }
+    let linjer = tolkLinjer(ta.value);
+    if (forste.checked) linjer = linjer.map(x => ({ ...x, navn: x.navn.split(' ')[0] }));
+    const nye = [], fraFor = [], dobbel = [], epostTil = [];
+    const epost = {};
+    linjer.forEach(({ navn: n, epost: ep }) => {
+      const finnes = personer().find(x => likNavn(x.navn, n));
+      if (finnes) { if (!fraFor.some(x => likNavn(x, n))) { fraFor.push(n); if (ep && !finnes.epost) epostTil.push([finnes, ep]); } }
       else if (nye.some(x => likNavn(x, n))) { if (!dobbel.some(x => likNavn(x, n))) dobbel.push(n); }
-      else nye.push(n);
+      else { nye.push(n); if (ep) epost[n] = ep; }
     });
-    return { nye, fraFor, dobbel };
+    return { nye, fraFor, dobbel, epost, epostTil };
   };
   const vis = () => {
     const a = analyser();
+    const antEpost = Object.keys(a.epost).length + a.epostTil.length;
     $('#imp-info', m.el).innerHTML = ta.value.trim() ? `<b style="color:var(--green)">${a.nye.length} nye</b> blir lagt til.` +
+      (antEpost ? `<br>${antEpost} e-postadresser blir lagt inn${a.epostTil.length ? ` (${a.epostTil.length} hos elever som finnes fra før)` : ''}.` : '') +
       (a.fraFor.length ? `<br>${a.fraFor.length} finnes fra før og hoppes over: ${esc(a.fraFor.slice(0, 6).join(', '))}${a.fraFor.length > 6 ? ' …' : ''}` : '') +
       (a.dobbel.length ? `<br><span style="color:var(--pink)">Står flere ganger i lista: ${esc(a.dobbel.join(', '))}. Bare den første blir lagt til. Skriv dem forskjellig, for eksempel «Ola H.» og «Ola B.».</span>` : '') : '';
-    $('#imp-ok', m.el).disabled = !a.nye.length;
+    $('#imp-ok', m.el).disabled = !a.nye.length && !a.epostTil.length;
   };
   ta.oninput = vis; forste.onchange = vis;
   $('#imp-fil', m.el).onchange = async e => { if (e.target.files[0]) { ta.value = await e.target.files[0].text(); vis(); } };
   $('#imp-avbryt', m.el).onclick = m.lukk;
   $('#imp-ok', m.el).onclick = () => {
-    const { nye } = analyser();
-    if (mal === 'elev') nye.forEach(n => D().elever.push({ id: nyId(), navn: n, klasseId: k.id, bilde: '' }));
-    else nye.forEach(n => D().laerere.push({ id: nyId(), navn: n, epost: '' }));
-    m.lukk(); Lager.lagre(); visSide(); toast(`${nye.length} ${mal === 'elev' ? 'elever' : 'lærere'} er importert.`);
+    const { nye, epost, epostTil } = analyser();
+    if (mal === 'elev') nye.forEach(n => D().elever.push({ id: nyId(), navn: n, klasseId: k.id, bilde: '', epost: epost[n] || '' }));
+    else nye.forEach(n => D().laerere.push({ id: nyId(), navn: n, epost: epost[n] || '' }));
+    epostTil.forEach(([p, ep]) => { p.epost = ep; });
+    m.lukk(); Lager.lagre(); visSide(); toast(`${nye.length} ${mal === 'elev' ? 'elever' : 'lærere'} er importert${epostTil.length ? `, ${epostTil.length} fikk e-post` : ''}.`);
   };
 }
 

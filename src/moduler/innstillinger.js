@@ -52,6 +52,7 @@ registrer('innstillinger', async el => {
       <label class="felt"><span>Datamappe</span><input type="text" id="in-mappe" readonly value="${api ? 'Henter …' : 'Testmodus: dataene ligger i nettleseren'}"></label>
       <div class="verktoylinje">${api ? '<button class="btn" id="in-bytt">Bytt mappe …</button><button class="btn sek" id="in-apne">Åpne mappen</button>' : ''}</div>
       <p class="smaa">Bruk bare VEKTRA på én PC om gangen hvis to PC-er deler samme mappe. Ellers kan endringer bli overskrevet.</p>`, 's6 gronn')}
+    ${i.rolle === 'elev' ? odElevKortHtml() : odLaererKortHtml()}
     ${kort('Sikkerhetskopi', `
       <p class="smaa" style="margin-top:0">VEKTRA tar en automatisk kopi hver dag i undermappen «Sikkerhetskopier» (de siste 14 dagene). Her kan du også lagre en kopi selv, eller hente tilbake en kopi.</p>
       <div class="verktoylinje"><button class="btn" id="in-eksport">Lagre sikkerhetskopi …</button><button class="btn sek" id="in-import">Gjenopprett fra fil …</button></div>`, 's6 oransje')}
@@ -67,6 +68,7 @@ registrer('innstillinger', async el => {
   $('#in-rolle', el).onchange = e => { i.rolle = e.target.value; Lager.lagre(); oppdaterProfil(); };
   $('#in-klasse', el).onchange = e => { i.klasse = e.target.value.trim(); Lager.lagre(); oppdaterProfil(); };
   tegnOppdatering();
+  if (i.rolle === 'elev') odKoblElevKort(el); else odKoblLaererKort(el);
   if (api) api.info().then(inf => { const m = $('#in-mappe'); if (m) m.value = inf.mappe; const v = $('#in-versjon'); if (v) v.textContent = inf.versjon; });
   else $('#in-versjon', el).textContent = 'testversjon';
 

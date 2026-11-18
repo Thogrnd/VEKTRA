@@ -364,6 +364,7 @@ function lgKoblKort(el, liste) {
   $$('[data-tilbake]', el).forEach(t => t.onchange = () => {
     const l = liste.find(x => x.id === t.dataset.tilbake);
     l.tilbakemelding = t.value.trim() ? { tekst: t.value.trim(), av: meg(), dato: idag() } : null;
+    if (!lgErElev()) odSendTilbakemeldinger(l.elev);
     Lager.lagre(); toast('Tilbakemeldingen er lagret.');
   });
   lgHydrer(el);
@@ -390,7 +391,7 @@ registrer('lg-loggbok', el => {
   liste.forEach(l => { const k = lgMandag(l.dato); let u = uker.find(x => x.k === k); if (!u) uker.push(u = { k, liste: [] }); u.liste.push(l); });
   el.innerHTML = sidehode(lgErElev() ? 'Min loggbok' : `Loggbok – ${esc(personNavn(elev))}`, lgErElev() ? 'Før logg etter hver økt. Det tar bare et par minutter.' : 'Eleven fører loggen. Du kan skrive tilbakemelding under hver logg.',
     `${elevValg}<button class="btn sek" id="lg-skriv" ${s.antall ? '' : 'disabled'}>Skriv ut loggbok …</button>
-     ${lgErElev() || !opplast ? `<button class="btn sek" id="lg-lever" ${s.antall ? '' : 'disabled'}>Lever logg …</button>` : ''}
+     ${lgErElev() || !opplast ? `<button class="btn sek" id="lg-lever" ${s.antall ? '' : 'disabled'}>${odErKoblet() ? 'Lever logg til læreren' : 'Lever logg …'}</button>` : ''}
      <button class="btn" id="lg-ny">+ Ny logg</button>`) +
     `<div class="grid">
       <div class="kort s3 gronn"><div class="smaa">Logger</div><div class="stor">${s.antall}</div><div class="smaa">${s.uke} denne uka${s.utkast ? ` · ${s.utkast} utkast` : ''}</div></div>
@@ -421,7 +422,7 @@ registrer('lg-oversikt', el => {
   const status = s => !s.siste ? st('Ingen logger', 'hoy') : s.siste === iDag ? st('Logget i dag', 'ok') : dagerTil(s.siste) >= -7 ? st(`${-dagerTil(s.siste)} d siden`, 'gul') : st(`${-dagerTil(s.siste)} d siden`, 'hoy');
   el.innerHTML = sidehode('Lærerens oversikt', 'Hvem har logget, og hvem trenger en påminnelse? Klikk på en elev for å lese loggboka og gi tilbakemelding.',
     `<select id="lg-klasse" style="width:auto">${klasser.map(k => `<option value="${k.id}" ${k.id === lgKlasse ? 'selected' : ''}>${esc(k.navn)}</option>`).join('')}</select>
-     <button class="btn" id="lg-hent">Hent innleveringer …</button>`) +
+     ${odLaererKlar() ? '<button class="btn sek" id="lg-hent">Hent fra fil …</button><button class="btn" id="lg-hent-od">Hent innleveringer</button>' : '<button class="btn" id="lg-hent">Hent innleveringer …</button>'}`) +
     `<div class="grid">${kort(`Elever i ${esc(klasseNavn(lgKlasse) || '–')}`, rader.length ? `<table><thead><tr><th>Elev</th><th>Status</th><th>Denne uka</th><th>Logger totalt</th><th>Timer</th><th>Snitt 1–6</th><th>Uten tilbakemelding</th></tr></thead><tbody>
       ${rader.map(r => `<tr class="klikk" data-elev="${r.id}"><td><b>${esc(r.navn)}</b></td><td data-sort="${r.s.siste || '0'}">${status(r.s)}</td><td>${r.s.uke}</td><td>${r.s.antall}</td><td>${lgTall(r.s.timer)}</td>
         <td data-sort="${r.s.snitt}">${r.s.snitt ? st(lgTall(r.s.snitt), LG_VURD_KL[Math.round(r.s.snitt) - 1]) : '–'}</td><td>${r.s.utenTilbake || '–'}</td></tr>`).join('')}
@@ -429,7 +430,8 @@ registrer('lg-oversikt', el => {
       ${ukjente.length ? kort('Logger fra elever som ikke finnes i registeret', `<p class="smaa" style="margin-top:0">Navnet i loggen stemmer ikke med noen elev i registeret. Sjekk stavemåten under Register.</p>
         ${ukjente.map(n => `<button class="btn sek" data-elev="${esc(n)}" style="margin:0 6px 6px 0">${esc(personNavn(n))} (${lgLoggerFor(n).length})</button>`).join('')}`, 's12 oransje') : ''}</div>`;
   $('#lg-klasse', el) && ($('#lg-klasse', el).onchange = e => { lgKlasse = e.target.value; visSide(); });
-  $('#lg-hent', el).onclick = lgHentInnleveringer;
+  $('#lg-hent', el).onclick = () => lgHentInnleveringer();
+  const ho = $('#lg-hent-od', el); if (ho) ho.onclick = () => lgHentInnleveringer('onedrive');
   $$('[data-elev]', el).forEach(r => r.onclick = () => { lgElev = r.dataset.elev; apneSide('lg-loggbok'); });
 });
 
@@ -486,10 +488,14 @@ async function lgLever(elev, liste) {
   const navn = personNavn(elev);
   const klasse = lgErElev() ? d.innst.klasse : klasseNavn(finnPerson(elev)?.klasseId);
   const video = ferdige.flatMap(l => l.media.filter(m => m.type === 'video').map(m => m.fil));
-  const innhold = JSON.stringify({ type: 'klar-logg', versjon: 1, elev: navn, klasse, levert: new Date().toISOString(),
+  const innhold = JSON.stringify({ type: 'klar-logg', versjon: 1, elev: navn, elevId: lgErElev() ? (d.innst.elevId || '') : elev, klasse, levert: new Date().toISOString(),
     logger: ferdige.map(l => ({ ...l, elev: navn, tilbakemelding: l.tilbakemelding || null })) });
   const filnavn = `Logg ${navn}${klasse ? ' ' + klasse : ''} ${idag()}.json`.replace(/[\\/:*?"<>|]/g, '');
-  if (api && api.leverLogg) {
+  if (lgErElev() && odErKoblet()) {
+    const r = await odLeverLogg(innhold, video);
+    if (!r) return;
+    toast(`Loggen er levert til læreren via OneDrive (${ferdige.length} logger${video.length ? `, ${video.length} videoer` : ''}).${r.mangler ? ` ${r.mangler} videoer manglet.` : ''}`, !!r.mangler);
+  } else if (api && api.leverLogg) {
     const r = await api.leverLogg({ filnavn, innhold, media: video });
     if (!r) return;
     toast(`Loggen er levert (${ferdige.length} logger${video.length ? `, ${video.length} videoer` : ''}).${r.mangler ? ` ${r.mangler} videoer manglet.` : ''}`, !!r.mangler);
@@ -507,10 +513,11 @@ function lgFinnElev(navn, klasse) {
   if (treff.length > 1 && klasse) { const k = d.klasser.find(x => x.navn.toLowerCase() === String(klasse).toLowerCase()); const t = treff.find(e => k && e.klasseId === k.id); if (t) return t.id; }
   return treff[0]?.id || navn;
 }
-async function lgHentInnleveringer() {
+async function lgHentInnleveringer(kilde) {
   const d = D();
   let filer = [];
-  if (api && api.hentLogger) filer = await api.hentLogger();
+  if (kilde === 'onedrive') filer = await odHentInnleveringer();
+  else if (api && api.hentLogger) filer = await api.hentLogger();
   else filer = await new Promise(res => {
     const i = document.createElement('input'); i.type = 'file'; i.multiple = true; i.accept = '.json,video/*';
     i.onchange = async () => {
@@ -528,7 +535,7 @@ async function lgHentInnleveringer() {
     try {
       const o = JSON.parse(f.innhold);
       if (o.type !== 'klar-logg' || !Array.isArray(o.logger)) throw new Error();
-      const elev = lgFinnElev(o.elev, o.klasse);
+      const elev = o.elevId && d.elever.some(e => e.id === o.elevId) ? o.elevId : lgFinnElev(o.elev, o.klasse);
       mangler += f.mangler || 0;
       o.logger.forEach(inn => {
         const gammel = d.logger.find(l => l.id === inn.id);
@@ -539,6 +546,7 @@ async function lgHentInnleveringer() {
     } catch (e) { feil++; }
   }
   Lager.lagre(); visSide();
+  if (kilde === 'onedrive' && !filer.length) { toast('Ingen elever har levert logg i elevmappene ennå.'); return; }
   if (filer.length) toast(`${nye} nye logger${oppdatert ? `, ${oppdatert} oppdatert` : ''}${feil ? `, ${feil} filer kunne ikke leses` : ''}${mangler ? `, ${mangler} videoer manglet` : ''}.`, (feil || mangler) > 0 && !nye);
 }
 

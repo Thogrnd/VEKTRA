@@ -157,8 +157,14 @@ ipcMain.handle('data:velgMappe', async () => {
 // Bytt til ny mappe. modus: 'bruk' = les dataene som ligger der, 'kopier' = skriv mine data dit
 ipcMain.handle('data:byttMappe', (e, mappe, modus, tekst) => {
   try {
+    const gammelMedia = mediaMappe();
     const i = lesInnst(); i.dataMappe = mappe; skrivInnst(i);
-    if (modus === 'kopier') skrivData(tekst);
+    if (modus === 'kopier') {
+      skrivData(tekst);
+      // bilder og video blir med (kopieres, originalene blir liggende)
+      const nyMedia = mediaMappe();
+      if (fs.existsSync(gammelMedia) && gammelMedia !== nyMedia) fs.cpSync(gammelMedia, nyMedia, { recursive: true, force: false, errorOnExist: false });
+    }
     return { ok: true, tekst: fs.existsSync(path.join(mappe, DATAFIL)) ? fs.readFileSync(path.join(mappe, DATAFIL), 'utf8') : null };
   } catch (err) { return { ok: false, feil: String(err.message || err) }; }
 });
@@ -269,6 +275,120 @@ ipcMain.handle('logg:hent', async () => {
     } catch (err) { /* leses som feil i vinduet */ }
     return { navn: path.basename(f), innhold, mangler };
   });
+});
+
+// ---------- OneDrive: mapper for lærer og elever ----------
+// Stier fra vinduet er relative til VEKTRA-mappen på OneDrive og kan ikke gå ut av den.
+const NOKKELFIL = 'vektra-elev.json';
+const trygtMappenavn = n => typeof n === 'string' && n.trim() && !/[\\/:*?"<>|]/.test(n) && n !== '.' && n !== '..';
+const trygRel = rel => typeof rel === 'string' && rel.split('/').every(trygtMappenavn);
+const fullSti = (rot, rel) => path.join(rot, ...rel.split('/'));
+
+ipcMain.handle('od:velgMappe', async (e, tittel) => {
+  const r = await dialog.showOpenDialog(vindu, { title: tittel || 'Velg mappe på OneDrive', properties: ['openDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  return r.filePaths[0];
+});
+
+// Lager mappestrukturen. plan: { mapper: [rel, ...], nokler: [{ rel, innhold }] }
+ipcMain.handle('od:lagMapper', (e, rot, plan) => {
+  try {
+    if (!rot || !fs.existsSync(rot)) throw new Error('Finner ikke VEKTRA-mappen på OneDrive.');
+    let nye = 0;
+    for (const rel of plan.mapper || []) {
+      if (!trygRel(rel)) continue;
+      const m = fullSti(rot, rel);
+      if (!fs.existsSync(m)) { fs.mkdirSync(m, { recursive: true }); nye++; }
+    }
+    for (const n of plan.nokler || []) {
+      if (!trygRel(n.rel)) continue;
+      fs.mkdirSync(fullSti(rot, n.rel), { recursive: true });
+      fs.writeFileSync(path.join(fullSti(rot, n.rel), NOKKELFIL), n.innhold, 'utf8');
+    }
+    return { ok: true, nye };
+  } catch (err) { return { ok: false, feil: String(err.message || err) }; }
+});
+
+ipcMain.handle('od:apne', (e, rot, rel) => {
+  const m = rel ? (trygRel(rel) ? fullSti(rot, rel) : rot) : rot;
+  return shell.openPath(m);
+});
+
+// Eleven kobler til: velg elevmappen, les nøkkelfila
+ipcMain.handle('od:velgElevmappe', async () => {
+  const r = await dialog.showOpenDialog(vindu, { title: 'Velg elevmappen din (mappen med navnet ditt fra læreren)', properties: ['openDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const mappe = r.filePaths[0];
+  const elevdata = path.join(mappe, 'Elevdata');
+  try { return { mappe, elevdata, harData: fs.existsSync(path.join(elevdata, DATAFIL)), nokkel: JSON.parse(fs.readFileSync(path.join(mappe, NOKKELFIL), 'utf8')) }; }
+  catch (err) { return { mappe, feil: 'Fant ikke nøkkelfila i mappen. Velg mappen med navnet ditt, ikke en mappe inni den.' }; }
+});
+
+// Eleven leverer: loggfila og videoene legges i «Til lærer» i elevmappen
+ipcMain.handle('od:lever', (e, elevmappe, { filnavn, innhold, media }) => {
+  try {
+    if (!trygtMappenavn(filnavn)) throw new Error('Ugyldig filnavn');
+    const til = path.join(elevmappe, 'Til lærer');
+    fs.mkdirSync(til, { recursive: true });
+    fs.writeFileSync(path.join(til, filnavn), innhold, 'utf8');
+    let mangler = 0;
+    for (const n of media || []) {
+      if (!trygtNavn(n)) continue;
+      const fra = path.join(mediaMappe(), n), mal = path.join(til, n);
+      try { if (!fs.existsSync(mal)) fs.copyFileSync(fra, mal); } catch (err) { mangler++; }
+    }
+    return { ok: true, mangler };
+  } catch (err) { return { ok: false, feil: String(err.message || err) }; }
+});
+
+// Eleven leser det læreren har lagt i «Fra lærer»
+ipcMain.handle('od:lesFraLaerer', (e, elevmappe) => {
+  try {
+    const fra = path.join(elevmappe, 'Fra lærer');
+    if (!fs.existsSync(fra)) return [];
+    return fs.readdirSync(fra).filter(f => f.toLowerCase().endsWith('.json'))
+      .map(f => ({ navn: f, innhold: fs.readFileSync(path.join(fra, f), 'utf8') }));
+  } catch (err) { return []; }
+});
+
+// Læreren henter: alle loggfiler i «Til lærer» for elevmappene som er oppgitt (rel-stier)
+ipcMain.handle('od:hentInnleveringer', (e, rot, elevmapper) => {
+  fs.mkdirSync(mediaMappe(), { recursive: true });
+  const ut = [];
+  for (const rel of elevmapper || []) {
+    if (!trygRel(rel)) continue;
+    const til = path.join(fullSti(rot, rel), 'Til lærer');
+    if (!fs.existsSync(til)) continue;
+    for (const f of fs.readdirSync(til).filter(x => x.toLowerCase().endsWith('.json'))) {
+      const fil = path.join(til, f);
+      const innhold = fs.readFileSync(fil, 'utf8');
+      let mangler = 0;
+      try {
+        const o = JSON.parse(innhold);
+        (o.logger || []).forEach(l => (l.media || []).forEach(m => {
+          if (m.type !== 'video' || !trygtNavn(m.fil)) return;
+          const fra = path.join(til, m.fil), mal = path.join(mediaMappe(), m.fil);
+          if (fs.existsSync(mal)) return;
+          if (fs.existsSync(fra)) fs.copyFileSync(fra, mal); else mangler++;
+        }));
+      } catch (err) { /* leses som feil i vinduet */ }
+      ut.push({ navn: f, innhold, mangler, rel });
+    }
+  }
+  return ut;
+});
+
+// Læreren skriver til eleven: fila legges i «Fra lærer» i elevmappen
+ipcMain.handle('od:skrivTilElev', (e, rot, rel, filnavn, innhold) => {
+  try {
+    if (!trygRel(rel) || !trygtMappenavn(filnavn)) throw new Error('Ugyldig mappe eller filnavn');
+    const fra = path.join(fullSti(rot, rel), 'Fra lærer');
+    if (!fs.existsSync(fullSti(rot, rel))) throw new Error('Finner ikke elevmappen ' + rel);
+    fs.mkdirSync(fra, { recursive: true });
+    const fil = path.join(fra, filnavn), tmp = fil + '.tmp';
+    fs.writeFileSync(tmp, innhold, 'utf8'); fs.renameSync(tmp, fil);
+    return { ok: true };
+  } catch (err) { return { ok: false, feil: String(err.message || err) }; }
 });
 
 // ---------- Oppdateringer fra GitHub ----------

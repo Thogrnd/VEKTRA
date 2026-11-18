@@ -114,6 +114,7 @@ async function forsteOppstart() {
   }
   i.fullfortOppstart = true;
   Lager.lagre(); oppdaterProfil(); visSide();
+  if (r && r.rolle === 'elev' && odFinnes() && await bekreft('Har læreren delt en elevmappe med deg på OneDrive? Da kan du koble VEKTRA til den nå, så blir navn og klasse fylt ut riktig og loggen går rett til læreren.', { ja: 'Koble til elevmappen', nei: 'Senere', tittel: 'Elevmappe på OneDrive' })) odKobleElevmappe();
 }
 
 /* ---------- Start ---------- */
