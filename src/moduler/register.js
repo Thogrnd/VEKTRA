@@ -59,7 +59,7 @@ registrer('reg-klasser', el => {
     const r = await skjema({ tittel: 'Ny elev i ' + k.navn, felt: [{ navn: 'navn', etikett: 'Navn', kreves: true }] });
     if (!r) return;
     if (elever.some(e => likNavn(e.navn, r.navn)) && !await bekreft(`Det finnes allerede en elev som heter «${esc(r.navn)}» i ${esc(k.navn)}. Vil du legge til en til med samme navn?`, { ja: 'Legg til', tittel: 'Samme navn' })) return;
-    d.elever.push({ id: nyId(), navn: r.navn, klasseId: k.id, bilde: '' }); Lager.lagre(); visSide();
+    d.elever.push({ id: nyId(), navn: r.navn, klasseId: k.id, bilde: '' }); Lager.lagre(); visSide(); odLagManglende();
   };
   $('#gi-navn', el).onclick = async () => {
     const r = await skjema({ tittel: 'Gi klassen nytt navn', felt: [{ navn: 'navn', etikett: 'Klassenavn', verdi: k.navn, kreves: true }] });
@@ -150,7 +150,7 @@ function importerTekst(k, mal = 'elev') {
     if (mal === 'elev') nye.forEach(n => D().elever.push({ id: nyId(), navn: n, klasseId: k.id, bilde: '', epost: epost[n] || '' }));
     else nye.forEach(n => D().laerere.push({ id: nyId(), navn: n, epost: epost[n] || '' }));
     epostTil.forEach(([p, ep]) => { p.epost = ep; });
-    m.lukk(); Lager.lagre(); visSide(); toast(`${nye.length} ${mal === 'elev' ? 'elever' : 'lærere'} er importert${epostTil.length ? `, ${epostTil.length} fikk e-post` : ''}.`);
+    m.lukk(); Lager.lagre(); visSide(); if (mal === 'elev' && nye.length) setTimeout(odLagManglende, 1500); toast(`${nye.length} ${mal === 'elev' ? 'elever' : 'lærere'} er importert${epostTil.length ? `, ${epostTil.length} fikk e-post` : ''}.`);
   };
 }
 
@@ -171,7 +171,7 @@ async function importerBilder(k, filer) {
     if (e) { e.bilde = bilde; oppdatert++; }
     else { D().elever.push({ id: nyId(), navn: n, klasseId: k.id, bilde }); nye++; }
   }
-  Lager.lagre(); visSide();
+  Lager.lagre(); visSide(); if (nye) setTimeout(odLagManglende, 1500);
   toast(`${nye} nye elever, ${oppdatert} fikk nytt bilde.` + (feil.length ? ` Kunne ikke lese: ${feil.slice(0, 3).join(', ')}` : ''), feil.length > 0);
 }
 

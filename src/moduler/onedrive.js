@@ -58,33 +58,57 @@ function odKoblLaererKort(el) {
 }
 
 /* ============ Lærer: lag mappene ============ */
-async function odLagMapper() {
+/* Lager planen. En elev som allerede har mappe, beholder den (også etter navne- eller klassebytte). */
+function odPlan(bareNye = false) {
   const d = D(), o = odOppsett();
-  if (!o.rot) { toast('Velg VEKTRA-mappen på OneDrive først.', true); return; }
-  if (!odErJobbkonto(o.rot)) { toast(OD_IKKE_JOBB, true); return; }
   if (!o.skolear) o.skolear = odSkolear();
   const elevRot = `Elever ${o.skolear}`;
-  const mapper = ['Lærer', 'HMS', ...OD_HMS.map(h => `HMS/${h}`), elevRot];
-  const nokler = [], hoppet = [], nyeRel = {};
+  const mapper = bareNye ? [] : ['Lærer', 'HMS', ...OD_HMS.map(h => `HMS/${h}`), elevRot];
+  const nokler = [], hoppet = [], rel = {};
   for (const k of sorterteKlasser()) {
     const elever = klassensElever(k.id);
     const kNavn = odRensNavn(k.navn); if (!kNavn) continue;
     for (const e of elever) {
-      const fNavn = odRensNavn(e.navn);
-      if (!fNavn || elever.some(x => x !== e && likNavn(x.navn, e.navn))) { hoppet.push(`${e.navn} (${k.navn})`); continue; }
-      const rel = `${elevRot}/${kNavn}/${fNavn}`;
-      mapper.push(rel, `${rel}/Elevdata`, `${rel}/Til lærer`, `${rel}/Fra lærer`);
-      nokler.push({ rel, innhold: JSON.stringify({ type: 'vektra-elev', versjon: 1, id: e.id, navn: e.navn, klasse: k.navn, skolear: o.skolear, laerer: d.innst.navn, laget: new Date().toISOString() }, null, 1) });
-      nyeRel[e.id] = rel;
+      let r = o.mapper[e.id];
+      if (bareNye && r) continue;
+      if (!r) {
+        const fNavn = odRensNavn(e.navn);
+        if (!fNavn || elever.some(x => x !== e && likNavn(x.navn, e.navn))) { hoppet.push(`${e.navn} (${k.navn})`); continue; }
+        r = `${elevRot}/${kNavn}/${fNavn}`;
+        if (Object.values(o.mapper).includes(r) || Object.values(rel).includes(r)) { hoppet.push(`${e.navn} (${k.navn})`); continue; }
+      }
+      mapper.push(r, `${r}/Elevdata`, `${r}/Til lærer`, `${r}/Fra lærer`);
+      nokler.push({ rel: r, innhold: JSON.stringify({ type: 'vektra-elev', versjon: 1, id: e.id, navn: e.navn, klasse: k.navn, skolear: o.skolear, laerer: d.innst.navn, laget: new Date().toISOString() }, null, 1) });
+      rel[e.id] = r;
     }
   }
+  return { mapper, nokler, hoppet, rel, elevRot };
+}
+async function odLagMapper() {
+  const o = odOppsett();
+  if (!o.rot) { toast('Velg VEKTRA-mappen på OneDrive først.', true); return; }
+  if (!odErJobbkonto(o.rot)) { toast(OD_IKKE_JOBB, true); return; }
+  const { mapper, nokler, hoppet, rel, elevRot } = odPlan();
   if (!nokler.length) { toast('Legg inn klasser og elever under Register først.', true); return; }
-  if (!await bekreft(`VEKTRA lager mapper i <b>${esc(o.rot)}</b>:<br>• Lærer<br>• HMS med ${OD_HMS.length} undermapper<br>• ${elevRot} med <b>${nokler.length} elevmapper</b> (Elevdata, Til lærer, Fra lærer)<br><br>Mapper som finnes fra før, blir ikke rørt.${hoppet.length ? `<br><br><span style="color:var(--pink)">Hoppes over fordi to elever i samme klasse har samme navn: ${esc(hoppet.join(', '))}. Gi dem forskjellige navn under Register (f.eks. «Ola H.» og «Ola B.»), og trykk på knappen igjen.</span>` : ''}`, { ja: 'Lag mappene', tittel: 'Lag OneDrive-mapper' })) return;
+  const nye = nokler.filter(n => !Object.values(o.mapper).includes(n.rel)).length;
+  if (!await bekreft(`VEKTRA lager mapper i <b>${esc(o.rot)}</b>:<br>• Lærer<br>• HMS med ${OD_HMS.length} undermapper<br>• ${elevRot} med <b>${nokler.length} elevmapper</b>${nye < nokler.length ? ` (${nye} nye)` : ''} – hver med Elevdata, Til lærer og Fra lærer<br><br>Mapper som finnes fra før, blir ikke rørt. Elever som har mappe, beholder den selv om navn eller klasse er endret.${hoppet.length ? `<br><br><span style="color:var(--pink)">Hoppes over fordi to elever i samme klasse har samme navn: ${esc(hoppet.join(', '))}. Gi dem forskjellige navn under Register (f.eks. «Ola H.» og «Ola B.»), og trykk på knappen igjen.</span>` : ''}`, { ja: 'Lag mappene', tittel: 'Lag OneDrive-mapper' })) return;
   const r = await api.odLagMapper(o.rot, { mapper, nokler });
   if (!r.ok) { toast('Kunne ikke lage mappene: ' + r.feil, true); return; }
-  Object.assign(o.mapper, nyeRel); Lager.lagre(); visSide();
-  toast(`Mappene er laget (${r.nye} nye). Nå må du dele elevmappene.`);
+  Object.assign(o.mapper, rel); Lager.lagre(); visSide();
+  toast(`Mappene er laget (${r.nye} nye). Husk å dele nye elevmapper.`);
   odDelingsliste();
+}
+/* Kalles fra Register når nye elever er lagt inn: lager mappene med en gang hvis OneDrive er satt opp */
+async function odLagManglende() {
+  const o = D().onedrive;
+  if (!odFinnes() || !o?.rot || !odErJobbkonto(o.rot) || !Object.keys(o.mapper || {}).length) return;
+  const { mapper, nokler, hoppet, rel } = odPlan(true);
+  if (!nokler.length) { if (hoppet.length) toast(`Fikk ikke laget OneDrive-mappe for ${hoppet.join(', ')}: samme navn som en annen elev i klassen.`, true); return; }
+  const r = await api.odLagMapper(o.rot, { mapper, nokler });
+  if (!r.ok) { toast('Kunne ikke lage OneDrive-mappe: ' + r.feil, true); return; }
+  Object.assign(o.mapper, rel); Lager.lagre();
+  const navn = Object.keys(rel).map(personNavn);
+  toast(`OneDrive-mappe er laget for ${navn.join(', ')}. Husk å dele den med eleven (Innstillinger → Deling og e-post).`);
 }
 
 /* ============ Lærer: liste for deling ============ */
