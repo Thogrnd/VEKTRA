@@ -17,6 +17,10 @@ function odOppsett() {
   if (!d.onedrive.mapper) d.onedrive.mapper = {};
   return d.onedrive;
 }
+/* Jobb- og skolekontoer synkroniseres til en mappe som heter «OneDrive - <organisasjon>».
+   Den private OneDrive-mappen heter bare «OneDrive», og der skal elevdata aldri ligge. */
+const odErJobbkonto = sti => /(^|[\\/])OneDrive\s*[-–]\s*[^\\/]+([\\/]|$)/i.test(String(sti || ''));
+const OD_IKKE_JOBB = 'Mappen ligger ikke på OneDrive-kontoen på jobb. Elevdata skal bare ligge der. Velg en mappe under «OneDrive – Østfold fylkeskommune» (eller skolens OneDrive). Finnes den ikke på denne PC-en, er jobbkontoen ikke logget inn i OneDrive her.';
 const odElevRel = id => (D().onedrive?.mapper || {})[id] || '';
 const odErKoblet = () => !!(D().innst.rolle === 'elev' && D().innst.elevmappe && api && api.odLever);
 
@@ -28,10 +32,11 @@ function odLaererKortHtml() {
   return kort('OneDrive (prøveversjon)', `
     <p class="smaa" style="margin-top:0">VEKTRA lager én mappe per elev i VEKTRA-mappen din på OneDrive. Du deler hver elevmappe med eleven. Da kommer loggene inn med ett trykk, og tilbakemeldingene dine går rett til eleven.</p>
     <label class="felt"><span>VEKTRA-mappe på OneDrive</span><input type="text" readonly value="${esc(o.rot || 'Ikke valgt')}"></label>
+    ${o.rot && !odErJobbkonto(o.rot) ? `<p class="smaa" style="color:var(--pink)">${OD_IKKE_JOBB} Trykk «Bytt mappe …».</p>` : ''}
     <p class="smaa">Elevmappene legges i «Elever ${esc(o.skolear || odSkolear())}».${antall ? ` ${antall} elever har mappe.` : ''}</p>
     <div class="verktoylinje">
       <button class="btn ${o.rot ? 'sek' : ''}" id="od-velg">${o.rot ? 'Bytt mappe …' : 'Velg mappe …'}</button>
-      ${o.rot ? `<button class="btn" id="od-lag">Lag OneDrive-mapper</button>
+      ${o.rot ? `<button class="btn" id="od-lag" ${odErJobbkonto(o.rot) ? '' : 'disabled'}>Lag OneDrive-mapper</button>
       <button class="btn sek" id="od-deling" ${antall ? '' : 'disabled'}>Deling og e-post …</button>
       <button class="btn sek" id="od-apne">Åpne mappen</button>` : ''}
     </div>`, 's6 gronn');
@@ -41,6 +46,7 @@ function odKoblLaererKort(el) {
   v.onclick = async () => {
     const m = await api.odVelgMappe('Velg VEKTRA-mappen på OneDrive (for eksempel OneDrive – Østfold fylkeskommune\\Vektra)');
     if (!m) return;
+    if (!odErJobbkonto(m)) { await velg('Feil OneDrive', `${esc(m)}<br><br>${OD_IKKE_JOBB}`, [{ v: 'ok', t: 'OK' }]); return; }
     const o = odOppsett();
     if (o.rot && o.rot !== m && Object.keys(o.mapper).length && !await bekreft('Du bytter VEKTRA-mappe. Elevmappene i den gamle mappen blir liggende, men VEKTRA bruker den nye. Trykk «Lag OneDrive-mapper» etterpå.', { ja: 'Bytt mappe', tittel: 'Bytte mappe' })) return;
     if (o.rot !== m) o.mapper = {};
@@ -55,6 +61,7 @@ function odKoblLaererKort(el) {
 async function odLagMapper() {
   const d = D(), o = odOppsett();
   if (!o.rot) { toast('Velg VEKTRA-mappen på OneDrive først.', true); return; }
+  if (!odErJobbkonto(o.rot)) { toast(OD_IKKE_JOBB, true); return; }
   if (!o.skolear) o.skolear = odSkolear();
   const elevRot = `Elever ${o.skolear}`;
   const mapper = ['Lærer', 'HMS', ...OD_HMS.map(h => `HMS/${h}`), elevRot];
