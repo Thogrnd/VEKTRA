@@ -4,7 +4,7 @@
 const VO_STEG = [['teori', 'Teori', 'Bruksanvisning og farer'], ['demo', 'Demonstrasjon', 'Lærer viser'], ['ovelse', 'Øving under tilsyn', 'Eleven prøver'], ['godkjent', 'Godkjent', 'For selvstendig bruk']];
 const VO_KOMPMAL = 'Velge og bruke maskiner og verktøy til ulike arbeidsoppdrag og følge anvisning for bruk og håndtering';   // BAT01-03, Udir
 const VO_STATUS = { g: ['Godkjent', 'ok'], u: ['Under opplæring', 'gul'], x: ['Må fornyes', 'hoy'], i: ['Ikke startet', ''] };
-/* Forslag til sjekkpunkter. Kan endres under «Sjekkpunkter …» */
+/* Forslag til sjekkpunkter. Kan endres under «Verktøy og sjekkpunkter …» */
 /* Verktøyene står i samme rekkefølge som på skolens skjema «Gjennomført instruks og opplæring» */
 const VO_STD_MALER = {
   'Spikerpistol': ['Velge og bruke riktig verneutstyr (briller, hørselvern)', 'Kjenne forskjell på enkeltskudd og kontaktutløser', 'Laste og bytte spiker riktig',
@@ -46,17 +46,18 @@ const VO_FELLES = ['Velge og bruke riktig verneutstyr', 'Lese og forstå bruksan
   'Bruke maskinen i riktig arbeidsstilling', 'Rydde og rengjøre etter bruk'];
 let voKlasse = '';
 
-const voMaler = () => { const d = D(); if (!d.opplMaler || !Object.keys(d.opplMaler).length) d.opplMaler = JSON.parse(JSON.stringify(VO_STD_MALER)); return d.opplMaler; };
-const voPunkterFor = maskin => voMaler()[maskin] || VO_FELLES;
-/* Maskinene som vises: maler + elektroverktøy og maskiner i verktøy-lista + det som er brukt i opplæringer */
-function voMaskiner() {
+/* Opplæringslista = verktøyene i d.opplMaler, i den rekkefølgen de står der. Læreren velger selv hva som er med.
+   Verktøy som er fjernet fra opplæringen, ligger i d.opplSkjult (med sjekkpunktene) og kan legges tilbake. */
+const voMaler = () => {
   const d = D();
-  /* Verktøyene med sjekkpunkter står først i skjemaets rekkefølge, resten alfabetisk etter */
-  const maler = Object.keys(voMaler());
-  const andre = [...new Set([...(d.verktoy || []).filter(v => ['Elektroverktøy', 'Maskin'].includes(v.type)).map(v => voNyttNavn(v.navn)), ...d.opplaering.map(o => o.maskin)])]
-    .filter(x => x && !maler.includes(x)).sort(sortNavn);
-  return [...maler, ...andre];
-}
+  if (!d.opplMaler || typeof d.opplMaler !== 'object') d.opplMaler = {};
+  if (!d.opplMalerInit) { if (!Object.keys(d.opplMaler).length) d.opplMaler = JSON.parse(JSON.stringify(VO_STD_MALER)); d.opplMalerInit = true; }
+  return d.opplMaler;
+};
+const voSkjult = () => { const d = D(); if (!d.opplSkjult || typeof d.opplSkjult !== 'object') d.opplSkjult = {}; return d.opplSkjult; };
+const voPunkterFor = maskin => voMaler()[maskin] || VO_FELLES;
+/* Maskinene som vises: bare det læreren har valgt, i valgt rekkefølge */
+function voMaskiner() { return Object.keys(voMaler()); }
 function voStatus(o) {
   if (!o) return 'i';
   if (o.steg.godkjent) return o.fornyes && o.fornyes < idag() ? 'x' : 'g';
@@ -167,37 +168,60 @@ async function voRediger(o, { elev = '', maskin = '' } = {}) {
 
 /* ============ Sjekkpunkter per maskin ============ */
 function voRedigerMaler(start = '') {
-  const maler = voMaler();
-  const maskiner = voMaskiner();
-  let valgt = start || maskiner[0] || '';
-  const m = modal(`<h2>Sjekkpunkter per maskin</h2>
-    <p style="margin-top:0">Sjekkpunktene brukes når du starter en ny opplæring. Ett punkt per linje. Maskiner uten egne punkter får de felles punktene.</p>
-    <div class="lg-r2"><label class="felt"><span>Maskin</span><select id="vm-maskin">${maskiner.map(x => `<option ${x === valgt ? 'selected' : ''}>${esc(x)}</option>`).join('')}<option value="__ny">+ Ny maskin …</option></select></label>
-      <label class="felt"><span>&nbsp;</span><input type="text" id="vm-nynavn" placeholder="Navn på ny maskin" class="skjult"></label></div>
-    <label class="felt"><span>Sjekkpunkter</span><textarea id="vm-punkter" style="min-height:210px"></textarea></label>
-    <div class="smaa" id="vm-info"></div>
-    <div class="knapper"><button class="btn sek" id="vm-std">Bruk felles punkter</button><button class="btn sek" id="vm-lukk" style="margin-left:auto">Lukk</button><button class="btn" id="vm-lagre">Lagre punktene</button></div>`, { bred: true });
-  const vis = () => {
-    const egne = maler[valgt];
-    $('#vm-punkter', m.el).value = (egne || VO_FELLES).join('\n');
-    $('#vm-info', m.el).textContent = egne ? '' : 'Maskinen har ingen egne punkter ennå. Det som står nå, er de felles punktene.';
+  const d = D();
+  const maler = voMaler(), skjult = voSkjult();
+  let valgt = start && (maler[start] || start === '__ny') ? start : Object.keys(maler)[0] || '__ny';
+  const m = modal(`<h2>Verktøy og sjekkpunkter</h2>
+    <p style="margin-top:0" class="smaa">Lista til venstre er verktøyene som er med i opplæringen, i den rekkefølgen de vises i oversikten, egenerklæringen og utskriftene. Bruk pilene for å flytte. Sjekkpunktene brukes når du starter en ny opplæring.</p>
+    <div class="vm-del"><div><div class="vm-liste" id="vm-liste"></div><button class="btn sek" id="vm-ny" style="width:100%;margin-top:8px">+ Nytt verktøy / maskin</button></div>
+      <div id="vm-hoyre"></div></div>
+    <div id="vm-skjult"></div>
+    <div class="knapper"><button class="btn" id="vm-lukk">Ferdig</button></div>`, { bred: true });
+  const ordne = (navn, ret) => {
+    const k = Object.keys(maler); const i = k.indexOf(navn), j = i + ret;
+    if (i < 0 || j < 0 || j >= k.length) return;
+    [k[i], k[j]] = [k[j], k[i]];
+    const kopi = { ...maler }; k.forEach(x => { delete maler[x]; }); k.forEach(x => { maler[x] = kopi[x]; });
+    Lager.lagre(); tegn();
   };
-  vis();
-  $('#vm-maskin', m.el).onchange = e => {
-    const ny = e.target.value === '__ny';
-    $('#vm-nynavn', m.el).classList.toggle('skjult', !ny);
-    if (ny) { $('#vm-nynavn', m.el).focus(); valgt = ''; $('#vm-punkter', m.el).value = VO_FELLES.join('\n'); } else { valgt = e.target.value; vis(); }
+  const tegn = () => {
+    const k = Object.keys(maler);
+    $('#vm-liste', m.el).innerHTML = k.map((n, i) => `<div class="vm-rad ${n === valgt ? 'aktiv' : ''}" data-n="${esc(n)}"><span>${esc(n)}</span>
+      <span class="vm-piler"><button class="lenkeknapp" data-opp="${esc(n)}" ${i ? '' : 'disabled'} title="Flytt opp">↑</button><button class="lenkeknapp" data-ned="${esc(n)}" ${i < k.length - 1 ? '' : 'disabled'} title="Flytt ned">↓</button></span></div>`).join('')
+      || '<div class="tom">Ingen verktøy i opplæringen.</div>';
+    const ny = valgt === '__ny';
+    const ant = ny ? 0 : d.opplaering.filter(o => o.maskin === valgt).length;
+    $('#vm-hoyre', m.el).innerHTML = `${ny ? '<label class="felt"><span>Navn på nytt verktøy / maskin</span><input type="text" id="vm-nynavn" placeholder="F.eks. Høvelbenk"></label>' : `<h3 style="margin:0 0 8px">${esc(valgt)}</h3>`}
+      <label class="felt"><span>Sjekkpunkter (ett per linje)</span><textarea id="vm-punkter" style="min-height:230px">${esc((ny ? VO_FELLES : maler[valgt] || VO_FELLES).join('\n'))}</textarea></label>
+      <div class="verktoylinje"><button class="btn" id="vm-lagre">${ny ? 'Legg til' : 'Lagre punktene'}</button><button class="btn sek" id="vm-std">Bruk felles punkter</button>
+        ${ny ? '' : `<span class="spacer"></span><button class="btn fare" id="vm-fjern" title="${ant ? ant + ' opplæringer er registrert. De blir liggende.' : ''}">Fjern fra opplæring</button>`}</div>`;
+    const sk = Object.keys(skjult);
+    $('#vm-skjult', m.el).innerHTML = sk.length ? `<div class="vm-skjult"><b>Fjernet fra opplæring:</b> ${sk.map(n => `<span class="vm-chip">${esc(n)} <button class="lenkeknapp" data-tilbake="${esc(n)}">Legg tilbake</button></span>`).join('')}</div>` : '';
+    $$('.vm-rad', m.el).forEach(r => r.onclick = e => { if (e.target.closest('button')) return; valgt = r.dataset.n; tegn(); });
+    $$('[data-opp]', m.el).forEach(b => b.onclick = () => ordne(b.dataset.opp, -1));
+    $$('[data-ned]', m.el).forEach(b => b.onclick = () => ordne(b.dataset.ned, 1));
+    $$('[data-tilbake]', m.el).forEach(b => b.onclick = () => { const n = b.dataset.tilbake; maler[n] = skjult[n] && skjult[n].length ? skjult[n] : [...VO_FELLES]; delete skjult[n]; valgt = n; Lager.lagre(); tegn(); toast(`${n} er lagt tilbake i opplæringen.`); });
+    $('#vm-std', m.el).onclick = () => { $('#vm-punkter', m.el).value = VO_FELLES.join('\n'); };
+    $('#vm-lagre', m.el).onclick = () => {
+      const navn = ny ? ($('#vm-nynavn', m.el).value || '').trim() : valgt;
+      if (!navn) { toast('Skriv navnet på verktøyet.', true); return; }
+      if (ny && (maler[navn] || skjult[navn])) { toast(maler[navn] ? 'Verktøyet finnes allerede i lista.' : 'Verktøyet er fjernet fra opplæringen. Trykk «Legg tilbake» nederst.', true); return; }
+      const punkter = $('#vm-punkter', m.el).value.split('\n').map(x => x.trim()).filter(Boolean);
+      if (!punkter.length) { toast('Legg inn minst ett sjekkpunkt.', true); return; }
+      maler[navn] = punkter; valgt = navn; Lager.lagre(); tegn();
+      toast(ny ? `${navn} er lagt til i opplæringen.` : `Sjekkpunktene for ${navn} er lagret.`);
+    };
+    const fj = $('#vm-fjern', m.el);
+    if (fj) fj.onclick = async () => {
+      if (!await bekreft(`<b>${esc(valgt)}</b> fjernes fra opplæringen, oversikten og egenerklæringen.${ant ? `<br><br>${ant} ${ant === 1 ? 'opplæring er' : 'opplæringer er'} registrert på verktøyet. ${ant === 1 ? 'Den' : 'De'} blir ikke slettet, og kommer fram igjen hvis du legger verktøyet tilbake.` : ''}`, { ja: 'Fjern', tittel: 'Fjerne fra opplæring?' })) return;
+      skjult[valgt] = maler[valgt]; delete maler[valgt];
+      const navn = valgt; valgt = Object.keys(maler)[0] || '__ny';
+      Lager.lagre(); tegn(); toast(`${navn} er fjernet fra opplæringen.`);
+    };
   };
-  $('#vm-std', m.el).onclick = () => { $('#vm-punkter', m.el).value = VO_FELLES.join('\n'); };
+  $('#vm-ny', m.el).onclick = () => { valgt = '__ny'; tegn(); const i = $('#vm-nynavn', m.el); if (i) i.focus(); };
   $('#vm-lukk', m.el).onclick = () => { m.lukk(); visSide(); };
-  $('#vm-lagre', m.el).onclick = () => {
-    const navn = valgt || $('#vm-nynavn', m.el).value.trim();
-    if (!navn) { toast('Skriv navnet på maskinen.', true); return; }
-    const punkter = $('#vm-punkter', m.el).value.split('\n').map(x => x.trim()).filter(Boolean);
-    if (!punkter.length) { toast('Legg inn minst ett sjekkpunkt.', true); return; }
-    maler[navn] = punkter; Lager.lagre(); toast(`Sjekkpunktene for ${navn} er lagret.`);
-    m.lukk(); voRedigerMaler(navn);
-  };
+  tegn();
 }
 
 /* ============ Utskrift ============ */
@@ -270,12 +294,12 @@ registrer('hms-kompetanse', el => {
   const celler = elever.map(e => maskiner.map(mk => { const o = voFinn(e.id, mk); return { o, s: voStatus(o) }; }));
   const telling = i => ({ g: celler[i].filter(c => c.s === 'g').length, u: celler[i].filter(c => c.s === 'u').length, x: celler[i].filter(c => c.s === 'x').length });
   if (!elever.some(e => e.id === voElev)) voElev = elever[0]?.id || '';
-  const tom = !klasser.length ? 'Legg inn klasser og elever under Register først.' : !maskiner.length ? 'Legg inn maskiner under «Sjekkpunkter …».' : !elever.length ? 'Ingen elever i klassen.' : '';
+  const tom = !klasser.length ? 'Legg inn klasser og elever under Register først.' : !maskiner.length ? 'Legg inn verktøy under «Verktøy og sjekkpunkter …».' : !elever.length ? 'Ingen elever i klassen.' : '';
 
   el.innerHTML = sidehode('Kompetanse og opplæring', voVisning === 'elev' ? 'Velg en elev for å se hvilke maskiner og verktøy eleven er godkjent i. Klikk på et verktøy for å åpne eller starte opplæringen.' : 'Hele klassen på én gang. Klikk på en rute for å åpne eller starte opplæringen.',
     `<select id="vo-klasse" style="width:auto">${klasser.map(k => `<option value="${k.id}" ${k.id === voKlasse ? 'selected' : ''}>${esc(k.navn)}</option>`).join('')}</select>
      <div class="vo-bytt"><button class="btn sek ${voVisning === 'elev' ? 'aktiv' : ''}" data-vis="elev">Per elev</button><button class="btn sek ${voVisning === 'klasse' ? 'aktiv' : ''}" data-vis="klasse">Hele klassen</button></div>
-     <button class="btn sek" id="vo-maler">Sjekkpunkter …</button>
+     <button class="btn sek" id="vo-maler">Verktøy og sjekkpunkter …</button>
      <button class="btn sek" id="vo-skriv" ${elever.length ? '' : 'disabled'}>Skriv ut oversikt</button>
      <button class="btn sek" id="vo-egen" ${elever.length ? '' : 'disabled'} title="Skolens egenerklæringsskjema, ett ark per elev">Egenerklæring for klassen</button>`) +
     `<div class="grid">${tom ? kort('Kompetanse og opplæring', `<div class="tom">${tom}</div>`, 's12 gronn') : voVisning === 'elev' ? voPerElev(elever, maskiner, celler, telling) : voHeleKlassen(elever, maskiner, celler)}</div>`;
@@ -355,5 +379,12 @@ function migrerOpplaering(d) {
       d.opplMaler = nye;
     }
     d.opplMalerVer = 2;
+  }
+  if (d.opplMalerVer < 3) {
+    if (d.opplMaler && Object.keys(d.opplMaler).length) {
+      d.opplMalerInit = true;
+      [...new Set(d.opplaering.map(o => o.maskin))].filter(m => m && !d.opplMaler[m]).forEach(m => { d.opplMaler[m] = [...VO_FELLES]; });
+    }
+    d.opplMalerVer = 3;
   }
 }

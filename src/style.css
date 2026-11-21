@@ -628,3 +628,15 @@ body.lys .gantt-farge-prosjekt{background:linear-gradient(90deg,rgba(27,30,60,.3
 .vo-utskrift .vo-u-g{border-color:#1f9d55;color:#145c33!important;background:#dff5e8}
 .vo-utskrift .vo-u-u{border-color:#d4a106;color:#6b5100!important;background:#fff4cc}
 .vo-utskrift .vo-u-x{border-color:#d6336c;color:#7a1238!important;background:#ffe0ea}
+
+/* ---------- Verktøy og sjekkpunkter (redigering) ---------- */
+.vm-del{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start}
+.vm-liste{display:flex;flex-direction:column;gap:2px;max-height:380px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:6px}
+.vm-rad{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px}
+.vm-rad:hover{background:var(--felt)}
+.vm-rad.aktiv{background:rgba(62,224,143,.12);outline:1px solid rgba(62,224,143,.5)}
+.vm-piler{display:flex;gap:2px;flex:0 0 auto}
+.vm-piler .lenkeknapp{padding:0 6px;font-size:15px}
+.vm-piler .lenkeknapp:disabled{opacity:.25;cursor:default}
+.vm-skjult{margin-top:14px;font-size:13px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.vm-chip{border:1px solid var(--line);border-radius:20px;padding:3px 10px;background:var(--felt)}
