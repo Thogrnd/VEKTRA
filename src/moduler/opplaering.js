@@ -284,10 +284,11 @@ registrer('hms-kompetanse', el => {
   $$('[data-vis]', el).forEach(b => b.onclick = () => { voVisning = b.dataset.vis; visSide(); });
   $('#vo-maler', el).onclick = () => voRedigerMaler();
   $('#vo-egen', el).onclick = () => voSkrivEgenerklaering(elever.map(e => e.id));
-  $('#vo-skriv', el).onclick = () => skrivUt(`<h1>Verktøyopplæring – ${esc(klasseNavn(voKlasse))}</h1><div class="meta">Skrevet ut ${visDato(idag())} · G = godkjent, U = under opplæring, F = må fornyes</div>
-    <table><thead><tr><th>Elev</th>${maskiner.map(mk => `<th>${esc(mk)}</th>`).join('')}</tr></thead><tbody>
-    ${elever.map((e, i) => `<tr><td>${esc(e.navn)}</td>${celler[i].map(c => `<td style="text-align:center">${{ g: 'G', u: 'U', x: 'F', i: '' }[c.s]}${c.s === 'g' && c.o.fornyes ? `<div style="font-size:9px">${visDato(c.o.fornyes)}</div>` : ''}</td>`).join('')}</tr>`).join('')}
-    </tbody></table>`, `Verktøyopplæring ${klasseNavn(voKlasse)}`);
+  $('#vo-skriv', el).onclick = () => skrivUt(`<div class="vo-utskrift"><h1>Verktøyopplæring – ${esc(klasseNavn(voKlasse))}</h1>
+    <table><thead><tr><th class="vo-u-navn">Elev</th>${maskiner.map(mk => `<th class="vo-u-mk"><div>${esc(mk)}</div></th>`).join('')}</tr></thead><tbody>
+    ${elever.map((e, i) => `<tr><td class="vo-u-navn">${esc(e.navn)}</td>${celler[i].map(c => `<td>${c.s === 'i' ? '' : `<span class="vo-u-${c.s}">${{ g: 'G', u: 'U', x: 'F' }[c.s]}</span>`}</td>`).join('')}</tr>`).join('')}
+    </tbody></table>
+    <div class="meta" style="margin-top:8px">G = godkjent · U = under opplæring · F = må fornyes · tom = ikke startet · Skrevet ut ${visDato(idag())}</div></div>`, `Verktøyopplæring ${klasseNavn(voKlasse)}`);
   // Per elev
   $$('[data-velg]', el).forEach(b => b.onclick = () => { voElev = b.dataset.velg; visSide(); });
   const sok = $('#vo-sok', el);

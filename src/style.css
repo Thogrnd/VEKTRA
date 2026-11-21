@@ -616,3 +616,15 @@ body.lys .gantt-farge-prosjekt{background:linear-gradient(90deg,rgba(27,30,60,.3
 .vo-elevhode .elevbilde{width:48px;height:48px}
 .vo-elevnavn{font-size:20px;font-weight:700}
 .vo-sum{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- Utskrift: Verktøyopplæring for klassen (alle verktøy på ett liggende A4) ---------- */
+.vo-utskrift table{width:100%;border-collapse:collapse;table-layout:fixed}
+.vo-utskrift th,.vo-utskrift td{border:1px solid #999!important;color:#000!important;text-transform:none!important;letter-spacing:0!important;text-align:center;padding:3px 2px!important;font-size:11pt}
+.vo-utskrift th.vo-u-navn,.vo-utskrift td.vo-u-navn{width:120px;text-align:left;padding:3px 8px!important;font-weight:600}
+.vo-utskrift th.vo-u-mk{height:150px;vertical-align:bottom;padding:4px 0!important}
+.vo-utskrift th.vo-u-mk div{writing-mode:vertical-rl;transform:rotate(180deg);margin:0 auto;font-size:10pt;font-weight:600;white-space:nowrap;line-height:1.1}
+.vo-utskrift tbody tr:nth-child(even) td{background:#efefef!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.vo-utskrift [class^="vo-u-"]:not(.vo-u-navn):not(.vo-u-mk){display:inline-block;min-width:22px;padding:1px 4px;border-radius:5px;border:2px solid;font-weight:700;font-size:10.5pt;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.vo-utskrift .vo-u-g{border-color:#1f9d55;color:#145c33!important;background:#dff5e8}
+.vo-utskrift .vo-u-u{border-color:#d4a106;color:#6b5100!important;background:#fff4cc}
+.vo-utskrift .vo-u-x{border-color:#d6336c;color:#7a1238!important;background:#ffe0ea}
