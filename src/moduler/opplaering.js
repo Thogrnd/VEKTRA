@@ -259,6 +259,8 @@ function voSkrivBevis(liste) {
 }
 
 /* ============ Side: Kompetanse og opplæring ============ */
+let voVisning = 'elev';   // 'elev' = én elev om gangen, 'klasse' = rutenettet for hele klassen
+let voElev = '';
 registrer('hms-kompetanse', el => {
   const d = D();
   const klasser = sorterteKlasser();
@@ -266,40 +268,75 @@ registrer('hms-kompetanse', el => {
   const elever = voKlasse ? klassensElever(voKlasse) : [];
   const maskiner = voMaskiner();
   const celler = elever.map(e => maskiner.map(mk => { const o = voFinn(e.id, mk); return { o, s: voStatus(o) }; }));
-  const tell = s => celler.flat().filter(c => c.s === s).length;
-  const fornyesSnart = d.opplaering.filter(o => o.steg.godkjent && o.fornyes && dagerTil(o.fornyes) <= 30).sort((a, b) => a.fornyes.localeCompare(b.fornyes));
-  el.innerHTML = sidehode('Kompetanse og opplæring', 'Hvem har fått opplæring i hvilke maskiner og verktøy? Klikk på en rute for å åpne eller starte opplæringen.',
+  const telling = i => ({ g: celler[i].filter(c => c.s === 'g').length, u: celler[i].filter(c => c.s === 'u').length, x: celler[i].filter(c => c.s === 'x').length });
+  if (!elever.some(e => e.id === voElev)) voElev = elever[0]?.id || '';
+  const tom = !klasser.length ? 'Legg inn klasser og elever under Register først.' : !maskiner.length ? 'Legg inn maskiner under «Sjekkpunkter …».' : !elever.length ? 'Ingen elever i klassen.' : '';
+
+  el.innerHTML = sidehode('Kompetanse og opplæring', voVisning === 'elev' ? 'Velg en elev for å se hvilke maskiner og verktøy eleven er godkjent i. Klikk på et verktøy for å åpne eller starte opplæringen.' : 'Hele klassen på én gang. Klikk på en rute for å åpne eller starte opplæringen.',
     `<select id="vo-klasse" style="width:auto">${klasser.map(k => `<option value="${k.id}" ${k.id === voKlasse ? 'selected' : ''}>${esc(k.navn)}</option>`).join('')}</select>
+     <div class="vo-bytt"><button class="btn sek ${voVisning === 'elev' ? 'aktiv' : ''}" data-vis="elev">Per elev</button><button class="btn sek ${voVisning === 'klasse' ? 'aktiv' : ''}" data-vis="klasse">Hele klassen</button></div>
      <button class="btn sek" id="vo-maler">Sjekkpunkter …</button>
      <button class="btn sek" id="vo-skriv" ${elever.length ? '' : 'disabled'}>Skriv ut oversikt</button>
-     <button class="btn sek" id="vo-egen" ${elever.length ? '' : 'disabled'} title="Skolens egenerklæringsskjema, ett ark per elev">Egenerklæring for klassen</button>
-     <button class="btn" id="vo-ny">+ Ny opplæring</button>`) +
-    `<div class="grid">
-      <div class="kort s3 gronn"><div class="smaa">Godkjent</div><div class="stor">${tell('g')}</div><div class="smaa">elev-maskin-kombinasjoner</div></div>
-      <div class="kort s3 gul"><div class="smaa">Under opplæring</div><div class="stor">${tell('u')}</div><div class="smaa">påbegynt, ikke godkjent</div></div>
-      <div class="kort s3 rosa"><div class="smaa">Må fornyes</div><div class="stor">${tell('x')}</div><div class="smaa">${fornyesSnart.length ? fornyesSnart.length + ' utløper innen 30 dager' : 'ingen utløper snart'}</div></div>
-      <div class="kort s3 bla"><div class="smaa">Maskiner</div><div class="stor">${maskiner.length}</div><div class="smaa">med sjekkpunkter eller i verktøy-lista</div></div>
-      ${kort(`Oversikt ${esc(klasseNavn(voKlasse) || '')}`, elever.length && maskiner.length ? `
-        <div class="vo-legende">${Object.entries(VO_STATUS).map(([k, [t, kl]]) => `<span>${kl ? st(t, kl) : `<span class="status vo-tom">${t}</span>`}</span>`).join('')}</div>
-        <div style="overflow-x:auto"><table class="vo-matrise"><thead><tr><th>Elev</th>${maskiner.map(mk => `<th>${esc(mk)}</th>`).join('')}</tr></thead><tbody>
-        ${elever.map((e, i) => `<tr><td><b>${esc(e.navn)}</b></td>${celler[i].map((c, j) => `<td data-sort="${'xgui'.indexOf(c.s)}"><button class="vo-celle" data-e="${e.id}" data-m="${esc(maskiner[j])}" title="${esc(VO_STATUS[c.s][0])}${c.o && c.o.fornyes && c.s === 'g' ? ' · ny kontroll ' + visDato(c.o.fornyes) : ''}">
-          ${c.s === 'i' ? '<span class="status vo-tom">–</span>' : st(c.s === 'u' ? `${VO_STEG.filter(([k]) => c.o.steg[k]).length}/4` : VO_STATUS[c.s][0], VO_STATUS[c.s][1])}</button></td>`).join('')}</tr>`).join('')}
-        </tbody></table></div>` : `<div class="tom">${!klasser.length ? 'Legg inn klasser og elever under Register først.' : !maskiner.length ? 'Legg inn maskiner under «Sjekkpunkter …» eller i verktøy-lista.' : 'Ingen elever i klassen.'}</div>`, 's12 gronn')}
-      ${fornyesSnart.length ? kort('Må fornyes snart', `<table><thead><tr><th>Elev</th><th>Maskin</th><th>Ny kontroll</th></tr></thead><tbody>
-        ${fornyesSnart.map(o => `<tr class="klikk" data-o="${o.id}"><td>${esc(personNavn(o.elev))}</td><td>${esc(o.maskin)}</td><td ${o.fornyes < idag() ? 'style="color:var(--pink);font-weight:700"' : ''}>${visDato(o.fornyes)}</td></tr>`).join('')}</tbody></table>`, 's6 rosa') : ''}
-      ${kort('Kommer senere i denne mappen', `<div class="sjekk" style="cursor:default">📁 Kurs og sertifikater (stillas, førstehjelp, varme arbeider)</div><div class="sjekk" style="cursor:default">📁 HMS-kort</div>`, `${fornyesSnart.length ? 's6' : 's12'} gul`)}
-    </div>`;
-  $('#vo-klasse', el) && ($('#vo-klasse', el).onchange = e => { voKlasse = e.target.value; visSide(); });
+     <button class="btn sek" id="vo-egen" ${elever.length ? '' : 'disabled'} title="Skolens egenerklæringsskjema, ett ark per elev">Egenerklæring for klassen</button>`) +
+    `<div class="grid">${tom ? kort('Kompetanse og opplæring', `<div class="tom">${tom}</div>`, 's12 gronn') : voVisning === 'elev' ? voPerElev(elever, maskiner, celler, telling) : voHeleKlassen(elever, maskiner, celler)}</div>`;
+
+  $('#vo-klasse', el) && ($('#vo-klasse', el).onchange = e => { voKlasse = e.target.value; voElev = ''; visSide(); });
+  $$('[data-vis]', el).forEach(b => b.onclick = () => { voVisning = b.dataset.vis; visSide(); });
   $('#vo-maler', el).onclick = () => voRedigerMaler();
   $('#vo-egen', el).onclick = () => voSkrivEgenerklaering(elever.map(e => e.id));
-  $('#vo-ny', el).onclick = () => voRediger(null);
   $('#vo-skriv', el).onclick = () => skrivUt(`<h1>Verktøyopplæring – ${esc(klasseNavn(voKlasse))}</h1><div class="meta">Skrevet ut ${visDato(idag())} · G = godkjent, U = under opplæring, F = må fornyes</div>
     <table><thead><tr><th>Elev</th>${maskiner.map(mk => `<th>${esc(mk)}</th>`).join('')}</tr></thead><tbody>
     ${elever.map((e, i) => `<tr><td>${esc(e.navn)}</td>${celler[i].map(c => `<td style="text-align:center">${{ g: 'G', u: 'U', x: 'F', i: '' }[c.s]}${c.s === 'g' && c.o.fornyes ? `<div style="font-size:9px">${visDato(c.o.fornyes)}</div>` : ''}</td>`).join('')}</tr>`).join('')}
     </tbody></table>`, `Verktøyopplæring ${klasseNavn(voKlasse)}`);
+  // Per elev
+  $$('[data-velg]', el).forEach(b => b.onclick = () => { voElev = b.dataset.velg; visSide(); });
+  const sok = $('#vo-sok', el);
+  if (sok) sok.oninput = () => { const q = sok.value.trim().toLowerCase(); $$('[data-velg]', el).forEach(b => b.style.display = !q || b.dataset.navn.includes(q) ? '' : 'none'); };
+  $$('[data-mk]', el).forEach(r => r.onclick = () => { const o = voFinn(voElev, r.dataset.mk); voRediger(o || null, { elev: voElev, maskin: r.dataset.mk }); });
+  const ee = $('#vo-elev-egen', el); if (ee) ee.onclick = () => voSkrivEgenerklaering([voElev]);
+  const en = $('#vo-elev-ny', el); if (en) en.onclick = () => voRediger(null, { elev: voElev });
+  // Hele klassen
   $$('.vo-celle', el).forEach(b => b.onclick = () => { const o = voFinn(b.dataset.e, b.dataset.m); voRediger(o || null, { elev: b.dataset.e, maskin: b.dataset.m }); });
   $$('tr[data-o]', el).forEach(r => r.onclick = () => voRediger(d.opplaering.find(o => o.id === r.dataset.o)));
 });
+
+/* Visning: én elev om gangen. Elevlista til venstre, alt om valgt elev til høyre. */
+function voPerElev(elever, maskiner, celler, telling) {
+  const i = Math.max(0, elever.findIndex(e => e.id === voElev));
+  const e = elever[i], t = telling(i), n = maskiner.length;
+  const ikke = n - t.g - t.u - t.x;
+  const instr = [...new Set(D().opplaering.filter(o => o.elev === e.id).map(o => personNavn(o.instruktor)).filter(Boolean))];
+  const liste = elever.map((x, j) => { const tj = telling(j); return `<button class="vo-elevknapp ${x.id === e.id ? 'aktiv' : ''}" data-velg="${x.id}" data-navn="${esc(x.navn.toLowerCase())}">
+    <span>${esc(x.navn)}</span><span class="smaa">${tj.x ? '<i class="vo-prikk rosa" title="Må fornyes"></i>' : tj.u ? '<i class="vo-prikk gul" title="Under opplæring"></i>' : ''}${tj.g}/${n}</span></button>`; }).join('');
+  const rader = maskiner.map((mk, j) => { const c = celler[i][j];
+    const statusTekst = c.s === 'u' ? `Steg ${VO_STEG.filter(([k]) => c.o.steg[k]).length} av 4` : VO_STATUS[c.s][0];
+    return `<tr class="klikk" data-mk="${esc(mk)}" title="Klikk for å ${c.o ? 'åpne' : 'starte'} opplæringen"><td><b>${esc(mk)}</b></td>
+      <td>${c.s === 'i' ? `<span class="status vo-tom">${statusTekst}</span>` : st(statusTekst, VO_STATUS[c.s][1])}</td>
+      <td>${c.o && c.o.steg.godkjent ? visDato(c.o.steg.godkjent) : '–'}</td>
+      <td ${c.s === 'x' ? 'style="color:var(--pink);font-weight:700"' : ''}>${c.o && c.o.steg.godkjent && c.o.fornyes ? visDato(c.o.fornyes) : '–'}</td></tr>`; }).join('');
+  return kort('Elever', `<input type="text" id="vo-sok" placeholder="Søk elev" style="margin-bottom:8px"><div class="vo-elevliste">${liste}</div>`, 's3 gronn') +
+    `<div class="kort s9 gronn"><div class="vo-elevhode">${bildeHtml(e, 'elevbilde')}<div style="flex:1;min-width:0"><div class="vo-elevnavn">${esc(e.navn)}</div>
+        <div class="smaa">${esc(klasseNavn(e.klasseId))}${instr.length ? ' · instruktør ' + esc(instr.join(', ')) : ''}</div></div>
+        <button class="btn sek" id="vo-elev-egen">Skriv ut egenerklæring</button><button class="btn" id="vo-elev-ny">+ Ny opplæring</button></div>
+      <div class="vo-sum">${st(`${t.g} godkjent`, 'ok')}${t.u ? st(`${t.u} under opplæring`, 'gul') : ''}${t.x ? st(`${t.x} må fornyes`, 'hoy') : ''}<span class="status vo-tom">${ikke} ikke startet</span></div>
+      <div class="bar" style="margin:10px 0 14px"><span style="width:${n ? Math.round(t.g / n * 100) : 0}%;background:var(--green)"></span></div>
+      <table><thead><tr><th>Verktøy / maskin</th><th style="width:170px">Status</th><th style="width:120px">Godkjent</th><th style="width:120px">Ny kontroll</th></tr></thead><tbody>${rader}</tbody></table></div>`;
+}
+
+/* Visning: rutenettet for hele klassen (som før) */
+function voHeleKlassen(elever, maskiner, celler) {
+  const d = D();
+  const fornyesSnart = d.opplaering.filter(o => o.steg.godkjent && o.fornyes && dagerTil(o.fornyes) <= 30 && elever.some(e => e.id === o.elev)).sort((a, b) => a.fornyes.localeCompare(b.fornyes));
+  return kort(`Oversikt ${esc(klasseNavn(voKlasse) || '')}`, `
+      <div class="vo-legende">${Object.entries(VO_STATUS).map(([k, [t, kl]]) => `<span>${kl ? st(t, kl) : `<span class="status vo-tom">${t}</span>`}</span>`).join('')}</div>
+      <div style="overflow-x:auto"><table class="vo-matrise"><thead><tr><th>Elev</th>${maskiner.map(mk => `<th>${esc(mk)}</th>`).join('')}</tr></thead><tbody>
+      ${elever.map((e, i) => `<tr><td><b>${esc(e.navn)}</b></td>${celler[i].map((c, j) => `<td data-sort="${'xgui'.indexOf(c.s)}"><button class="vo-celle" data-e="${e.id}" data-m="${esc(maskiner[j])}" title="${esc(VO_STATUS[c.s][0])}${c.o && c.o.fornyes && c.s === 'g' ? ' · ny kontroll ' + visDato(c.o.fornyes) : ''}">
+        ${c.s === 'i' ? '<span class="status vo-tom">–</span>' : st(c.s === 'u' ? `${VO_STEG.filter(([k]) => c.o.steg[k]).length}/4` : VO_STATUS[c.s][0], VO_STATUS[c.s][1])}</button></td>`).join('')}</tr>`).join('')}
+      </tbody></table></div>`, 's12 gronn') +
+    (fornyesSnart.length ? kort('Må fornyes snart', `<table><thead><tr><th>Elev</th><th>Maskin</th><th>Ny kontroll</th></tr></thead><tbody>
+      ${fornyesSnart.map(o => `<tr class="klikk" data-o="${o.id}"><td>${esc(personNavn(o.elev))}</td><td>${esc(o.maskin)}</td><td ${o.fornyes < idag() ? 'style="color:var(--pink);font-weight:700"' : ''}>${visDato(o.fornyes)}</td></tr>`).join('')}</tbody></table>`, 's6 rosa') : '') +
+    kort('Kommer senere i denne mappen', `<div class="sjekk" style="cursor:default">📁 Kurs og sertifikater (stillas, førstehjelp, varme arbeider)</div><div class="sjekk" style="cursor:default">📁 HMS-kort</div>`, `${fornyesSnart.length ? 's6' : 's12'} gul`);
+}
 
 function migrerOpplaering(d) {
   if (!Array.isArray(d.opplaering)) d.opplaering = [];

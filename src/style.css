@@ -597,3 +597,22 @@ body.lys .gantt-farge-prosjekt{background:linear-gradient(90deg,rgba(27,30,60,.3
 .ek table.ek-tabell{width:100%;border-collapse:collapse;margin-top:12px}
 .forhand .ek th,.forhand .ek td,.utskrift .ek th,.utskrift .ek td,.ek th,.ek td{border:1px solid #000;color:#000;padding:2px 6px;height:21px;font-size:10.5pt;background:#fff!important;text-align:left}
 .ek th{font-weight:400;text-decoration:underline}
+
+/* ---------- Kompetanse og opplæring: per elev ---------- */
+.vo-bytt{display:inline-flex;gap:0}
+.vo-bytt .btn{border-radius:0}
+.vo-bytt .btn:first-child{border-radius:10px 0 0 10px}
+.vo-bytt .btn:last-child{border-radius:0 10px 10px 0;margin-left:-1px}
+.vo-bytt .btn.aktiv{background:rgba(62,224,143,.16);border-color:var(--green);color:var(--text)}
+.vo-elevliste{display:flex;flex-direction:column;gap:2px;max-height:620px;overflow-y:auto}
+.vo-elevknapp{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:10px;padding:8px 10px;color:var(--text);cursor:pointer;font:inherit}
+.vo-elevknapp:hover{background:var(--felt)}
+.vo-elevknapp.aktiv{background:rgba(62,224,143,.12);border-color:rgba(62,224,143,.5)}
+.vo-elevknapp .smaa{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.vo-prikk{display:inline-block;width:8px;height:8px;border-radius:50%}
+.vo-prikk.gul{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
+.vo-prikk.rosa{background:var(--pink);box-shadow:0 0 6px var(--pink)}
+.vo-elevhode{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.vo-elevhode .elevbilde{width:48px;height:48px}
+.vo-elevnavn{font-size:20px;font-weight:700}
+.vo-sum{display:flex;gap:8px;flex-wrap:wrap}

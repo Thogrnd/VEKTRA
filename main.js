@@ -378,6 +378,28 @@ ipcMain.handle('od:hentInnleveringer', (e, rot, elevmapper) => {
   return ut;
 });
 
+// HMS-mappene: list filene i en mappe og åpne en fil i standardprogrammet
+ipcMain.handle('od:listFiler', (e, base, rel) => {
+  try {
+    if (!base || (rel && !trygRel(rel))) return { ok: false, feil: 'Ugyldig mappe' };
+    const m = rel ? fullSti(base, rel) : base;
+    if (!fs.existsSync(m)) return { ok: true, finnes: false, filer: [] };
+    const filer = fs.readdirSync(m, { withFileTypes: true })
+      .filter(f => f.isFile() && !f.name.startsWith('.') && !f.name.startsWith('~$') && f.name.toLowerCase() !== 'desktop.ini')
+      .map(f => { let st = null; try { st = fs.statSync(path.join(m, f.name)); } catch (err) { /* sky-fil */ } return { navn: f.name, str: st ? st.size : 0, endret: st ? st.mtime.toISOString() : '' }; });
+    return { ok: true, finnes: true, filer };
+  } catch (err) { return { ok: false, feil: String(err.message || err) }; }
+});
+ipcMain.handle('od:apneFil', (e, base, rel, navn) => {
+  if (!base || (rel && !trygRel(rel)) || (navn && !trygtMappenavn(navn))) return 'Ugyldig fil';
+  const m = rel ? fullSti(base, rel) : base;
+  return shell.openPath(navn ? path.join(m, navn) : m);
+});
+// Elevens HMS-snarvei ligger som regel ved siden av elevmappen i OneDrive
+ipcMain.handle('od:finnHms', (e, elevmappe) => {
+  try { const m = path.join(path.dirname(elevmappe), 'HMS'); return fs.existsSync(m) ? m : null; } catch (err) { return null; }
+});
+
 // Læreren skriver til eleven: fila legges i «Fra lærer» i elevmappen
 ipcMain.handle('od:skrivTilElev', (e, rot, rel, filnavn, innhold) => {
   try {
