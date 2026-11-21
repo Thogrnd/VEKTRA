@@ -56,9 +56,6 @@ registrer('innstillinger', async el => {
     ${kort('Sikkerhetskopi', `
       <p class="smaa" style="margin-top:0">VEKTRA tar en automatisk kopi hver dag i undermappen «Sikkerhetskopier» (de siste 14 dagene). Her kan du også lagre en kopi selv, eller hente tilbake en kopi.</p>
       <div class="verktoylinje"><button class="btn" id="in-eksport">Lagre sikkerhetskopi …</button><button class="btn sek" id="in-import">Gjenopprett fra fil …</button></div>`, 's6 oransje')}
-    ${kort('Lærerpassord', TESTMODUS ? '<p class="smaa" style="margin-top:0">Lærerpassordet er slått av mens programmet testes (testmodus). Alle sider er åpne for alle.</p>' : opplast ? `
-      <div class="rad"><label class="felt"><span>Nytt passord</span><input type="password" id="pw1"></label><label class="felt"><span>Gjenta</span><input type="password" id="pw2"></label><button class="btn auto" id="pw-lagre" style="margin-bottom:12px">Bytt passord</button></div>`
-      : '<p class="smaa" style="margin-top:0">Lås opp lærermodus (for eksempel ved å åpne Klassekart) for å bytte passord.</p>', 's6 rosa')}
     ${kort('Prøv VEKTRA', `
       <p class="smaa" style="margin-top:0">Fyll VEKTRA med eksempeldata for å se hvordan alt fungerer. Du kan slette alt etterpå.</p>
       <div class="verktoylinje"><button class="btn sek" id="in-demo">Fyll inn eksempeldata</button><button class="btn fare" id="in-slett">Slett alle data …</button></div>`, 's6 cyan')}
@@ -100,13 +97,6 @@ registrer('innstillinger', async el => {
     let ny; try { ny = JSON.parse(f.innhold); if (!ny.innst || !Array.isArray(ny.klasser)) throw 0; } catch (e) { toast('Fila er ikke en VEKTRA-sikkerhetskopi.', true); return; }
     if (!await bekreft(`Alle data i VEKTRA blir erstattet med innholdet i <b>${esc(f.navn)}</b>.`, { ja: 'Gjenopprett', fare: true })) return;
     Lager.d = migrer(ny); Lager.lagre(); settTema(D().innst.tema); oppdaterProfil(); visSide(); toast('Dataene er gjenopprettet.');
-  };
-  const pw = $('#pw-lagre', el);
-  if (pw) pw.onclick = async () => {
-    const a = $('#pw1', el).value, b = $('#pw2', el).value;
-    if (a.length < 4) { toast('Passordet må ha minst 4 tegn.', true); return; }
-    if (a !== b) { toast('Passordene er ikke like.', true); return; }
-    i.pwHash = await sha256(a); Lager.lagre(); toast('Lærerpassordet er byttet.'); visSide();
   };
   $('#in-demo', el).onclick = async () => {
     if (!await bekreft('Eksempeldata legges til i tillegg til det som ligger i VEKTRA fra før.', { ja: 'Fyll inn', tittel: 'Fylle inn eksempeldata?' })) return;
@@ -195,11 +185,10 @@ registrer('hjelp', el => {
       <li>Søkefeltet (Ctrl+K) finner sider, elever, prosjekter, oppgaver, avvik og risikovurderinger.</li>
       <li>Alt lagres automatisk. Nederst i sidemenyen ser du når det sist ble lagret.</li>
       <li>Knappen øverst til venstre gjør menyen smal, slik at du får mer plass.</li></ul></div>`, 's6 bla')}
-    ${kort('Lærermodus', `<div class="tom" style="text-align:left;padding:0"><ul style="margin:0;padding-left:18px">
-      <li>Register og Klassekart er bare for lærer og krever passord. Det samme gjelder å hente inn og vurdere innleveringer.</li>
+    ${kort('Register og lærersider', `<div class="tom" style="text-align:left;padding:0"><ul style="margin:0;padding-left:18px">
       <li>Klasser, elever og lærere legges inn én gang under Register, og kan så velges i alle modulene.</li>
-      <li>Lærermodus er åpen til du trykker «Lærermodus – lås» øverst, eller lukker VEKTRA.</li>
-      <li>Du kan bytte passord under Innstillinger.</li></ul></div>`, 's6 gronn')}
+      <li>Alle sider er åpne. Senere skal en lisenskode bestemme hvilke moduler hver bruker ser.</li>
+      <li>Dataene dine ligger på din PC og i din OneDrive. En elev som åpner lærersidene, ser bare sin egen VEKTRA.</li></ul></div>`, 's6 gronn')}
     ${kort('Risikovurdering for elever', `<div class="tom" style="text-align:left;padding:0"><ol style="margin:0;padding-left:18px">
       <li>Gå til HMS → Risikovurderinger og trykk «+ Ny risikovurdering».</li>
       <li>Fyll inn arbeidsoppdraget, velg sone og legg inn farene. Gi sannsynlighet (S) og konsekvens (K) fra 1 til 5.</li>

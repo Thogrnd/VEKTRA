@@ -5,9 +5,6 @@ const api = window.klarApi || null;            // finnes bare i det installerte 
 /* TESTKNAPPER: «Slett valgte» i avvik og risikovurderinger. Bare for testing.
    SKAL FJERNES i endelig versjon: sett til false (eller slett alt som bruker TESTKNAPPER). */
 const TESTKNAPPER = true;
-/* TESTMODUS: alle lærersider er åpne uten passord mens programmet testes. Elevene får da tilgang til alt.
-   SKAL SLÅS AV i endelig versjon: sett til false, så kreves lærerpassordet igjen. */
-const TESTMODUS = true;
 const STANDARD_PW = '63f61a28f36649c3630ad9dba1718dbf2076368e63e6594202860fdf4f8aeaf4';      // felles lærerpassord: Malakoff
 const GAMMELT_PW = '25a2c693d1d9835d8f9c6636fa7e60ec7c4bbfc7a49a5bd735bc889f3638a7c4';      // tidligere standardpassord
 
@@ -308,7 +305,9 @@ const registrer = (id, fn) => { SIDE[id] = fn; };
 let faner = ['hjem'];
 let aktiv = 'hjem';
 const apne = new Set(['ledelse']);
-let opplast = TESTMODUS;
+/* Lærerpassordet er fjernet (nov. 2026): alle sider er åpne. Lisenskoden med modulvalg skal senere bestemme hvem som ser hva.
+   Merkingen «laerer» i MENY beholdes til det. */
+let opplast = true;
 const erLast = id => !opplast && SIDER[id]?.laerer;
 
 function tegnMeny() {
@@ -319,11 +318,11 @@ function tegnMeny() {
     const synligeUnder = (m.under || []).filter(u => !(u.laerer && !opplast));
     const harUnder = synligeUnder.length > 0 && !gruppeLast;
     const erAktiv = aktiv === m.id || (forelder === m.id && (gruppeLast || !apne.has(m.id)));
-    const laasIkon = m.laerer ? ` <span class="hengelaas" title="${opplast ? 'Låst opp' : 'Krever lærerpassord'}">${opplast ? '🔓' : '🔒'}</span>` : '';
+    const laasIkon = '';
     let h = `<button class="mi ${erAktiv ? 'aktiv' : ''} ${harUnder && apne.has(m.id) ? 'apen' : ''}" data-id="${m.id}" title="${m.navn}">
       ${svg(I[m.ikon])}<span class="lbl">${m.navn}${laasIkon}</span>${harUnder ? svg(I.pil, 'pil') : ''}</button>`;
     if (harUnder) h += `<div class="sub ${apne.has(m.id) ? 'vis' : ''}">` + synligeUnder.map(u =>
-      `<button class="si ${aktiv === u.id ? 'aktiv' : ''}" data-id="${u.id}">${u.navn}${u.laerer ? ' <span class="hengelaas">🔓</span>' : ''}</button>`).join('') + '</div>';
+      `<button class="si ${aktiv === u.id ? 'aktiv' : ''}" data-id="${u.id}">${u.navn}</button>`).join('') + '</div>';
     return h;
   }).join('');
 }
@@ -362,10 +361,6 @@ function visSide() {
   const el = $('#innhold');
   const s = SIDER[aktiv];
   const scroll = el.scrollTop;
-  if (erLast(aktiv)) {
-    el.innerHTML = `<div class="sidehode"><div><h1>${esc(s.forelder && s.forelder.laerer ? s.forelder.navn : s.navn)}</h1></div></div>` + laasSkjerm();
-    koblelaas(); return;
-  }
   const fn = SIDE[aktiv];
   el.innerHTML = '';
   const ramme = document.createElement('div');   // ny ramme hver gang, så hendelser ikke hoper seg opp
@@ -437,41 +432,6 @@ function sidehode(tittel, tekst = '', verktoy = '') {
   return `<div class="sidehode"><div>${s && s.forelder ? `<div class="sti">${esc(s.forelder.navn)} ›</div>` : ''}<h1>${esc(tittel)}</h1>${tekst ? `<p>${tekst}</p>` : ''}</div>${verktoy ? `<div class="verktoy">${verktoy}</div>` : ''}</div>`;
 }
 
-/* ============ Lærerlås ============ */
-function laasSkjerm() {
-  return `<div class="laas"><div class="kort gronn laaskort">
-    <div class="laasik">${svg(I.laas)}</div>
-    <h2>Bare for lærer</h2>
-    <p class="smaa">Denne delen av VEKTRA er låst. Skriv inn lærerpassordet for å fortsette.</p>
-    <form class="laasform" id="laasform" autocomplete="off">
-      <input id="laaspw" type="password" inputmode="numeric" placeholder="Passord" aria-label="Passord">
-      <button class="btn" type="submit">Lås opp</button>
-    </form>
-    <div id="laasfeil" class="laasfeil" aria-live="polite"></div>
-  </div></div>`;
-}
-function koblelaas() {
-  const f = $('#laasform'); if (!f) return;
-  const inp = $('#laaspw'); inp.focus();
-  f.addEventListener('submit', async e => {
-    e.preventDefault();
-    let ok = false;
-    try { ok = (await sha256(inp.value)) === D().innst.pwHash; } catch (err) { ok = false; }
-    if (ok) { settLaas(true); }
-    else {
-      inp.value = ''; inp.focus();
-      $('#laasfeil').textContent = 'Feil passord. Prøv igjen.';
-      f.classList.remove('rist'); void f.offsetWidth; f.classList.add('rist');
-    }
-  });
-}
-function settLaas(apen) {
-  opplast = apen || TESTMODUS;
-  $('#laerermodus').classList.toggle('skjult', !opplast);
-  if (apen) { const f = SIDER[aktiv]?.forelder; if (f) apne.add(f.id); }
-  else if (SIDER[aktiv]?.laerer) { /* blir stående på låseskjermen */ }
-  tegnMeny(); tegnFaner(); visSide();
-}
 
 /* ============ Dialoger ============ */
 function modal(html, { bred = false } = {}) {

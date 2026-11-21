@@ -38,8 +38,6 @@ $('#faner').addEventListener('click', e => {
 $('#faner').addEventListener('auxclick', e => { const b = e.target.closest('.fane'); if (b && e.button === 1) lukkFane(b.dataset.id); });
 $('#skjulmeny').onclick = () => $('#side').classList.toggle('smal');
 $('#profil').onclick = () => apneSide('innstillinger');
-if (TESTMODUS) { const lm = $('#laerermodus'); lm.classList.remove('skjult'); lm.textContent = '🧪 Testmodus – alt er åpent'; lm.title = 'Lærerpassordet er slått av mens programmet testes'; lm.style.color = 'var(--yellow)'; lm.style.borderColor = 'rgba(255,207,74,.4)'; lm.style.cursor = 'default'; lm.onclick = () => toast('Testmodus: lærerpassordet er slått av mens programmet testes.'); }
-else $('#laerermodus').onclick = () => { settLaas(false); toast('Lærermodus er låst.'); };
 $('#dato').textContent = new Date().toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' }) + ` · uke ${ukenr(new Date())}`;
 window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (SIDER[id] && id !== aktiv) apneSide(id); });
 
