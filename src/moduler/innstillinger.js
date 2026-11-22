@@ -44,7 +44,7 @@ registrer('innstillinger', async el => {
   el.innerHTML = sidehode('Innstillinger') + `<div class="grid">
     ${kort('Profil', `
       <label class="felt"><span>Navn</span><input type="text" id="in-navn" value="${esc(i.navn)}"></label>
-      <div class="rad"><label class="felt"><span>Rolle</span><select id="in-rolle"><option value="laerer" ${i.rolle === 'laerer' ? 'selected' : ''}>Lærer</option><option value="elev" ${i.rolle === 'elev' ? 'selected' : ''}>Elev</option></select></label>
+      <div class="rad"><label class="felt"><span>Rolle</span><select id="in-rolle" ${i.elevmappe ? 'disabled title="Koblet til elevmappe på OneDrive"' : ''}><option value="laerer" ${i.rolle === 'laerer' ? 'selected' : ''}>Lærer</option><option value="elev" ${i.rolle === 'elev' ? 'selected' : ''}>Elev</option></select></label>
       <label class="felt"><span>Klasse</span><input type="text" id="in-klasse" value="${esc(i.klasse)}" placeholder="F.eks. 1BA"></label></div>`, 's6 bla')}
     ${kort('Oppdateringer', `<p class="smaa" style="margin-top:0">Installert versjon: <b id="in-versjon">–</b>. VEKTRA henter nye versjoner fra GitHub.</p><div id="oppd-status"></div>`, 's6 lilla')}
     ${kort('Datalagring', `
@@ -62,7 +62,7 @@ registrer('innstillinger', async el => {
   </div>`;
 
   $('#in-navn', el).onchange = e => { i.navn = e.target.value.trim(); Lager.lagre(); oppdaterProfil(); };
-  $('#in-rolle', el).onchange = e => { i.rolle = e.target.value; Lager.lagre(); oppdaterProfil(); };
+  $('#in-rolle', el).onchange = e => { i.rolle = e.target.value; Lager.lagre(); oppdaterProfil(); tegnMeny(); };
   $('#in-klasse', el).onchange = e => { i.klasse = e.target.value.trim(); Lager.lagre(); oppdaterProfil(); };
   tegnOppdatering();
   if (i.rolle === 'elev') odKoblElevKort(el); else odKoblLaererKort(el);

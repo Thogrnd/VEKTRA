@@ -308,14 +308,26 @@ const apne = new Set(['ledelse']);
 /* Lærerpassordet er fjernet (nov. 2026): alle sider er åpne. Lisenskoden med modulvalg skal senere bestemme hvem som ser hva.
    Merkingen «laerer» i MENY beholdes til det. */
 let opplast = true;
-const erLast = id => !opplast && SIDER[id]?.laerer;
+/* Elever: lærersider er alltid skjult. Moduler kan i tillegg skjules av læreren (innst.moduler, fra nøkkelfila i elevmappen).
+   innst.moduler = null betyr alle elevmodulene. */
+const ELEV_MODULER = MENY.filter(m => m.under && !m.laerer).map(m => m.id);
+function erSkjult(id) {
+  const i = D()?.innst; const s = SIDER[id];
+  if (!i || i.rolle !== 'elev' || !s) return false;
+  if (s.laerer) return true;
+  const modul = s.forelder ? s.forelder.id : id;
+  return Array.isArray(i.moduler) && ELEV_MODULER.includes(modul) && !i.moduler.includes(modul);
+}
+const erLast = id => erSkjult(id);
 
 function tegnMeny() {
   const forelder = SIDER[aktiv]?.forelder?.id;
-  $('#nav').innerHTML = MENY.map(m => {
+  const deler = MENY.map(m => {
     if (m.seksjon) return `<div class="seksjon">${m.seksjon}</div>`;
-    const gruppeLast = m.laerer && !opplast;
-    const synligeUnder = (m.under || []).filter(u => !(u.laerer && !opplast));
+    if (erSkjult(m.id)) return '';
+    const gruppeLast = false;
+    const synligeUnder = (m.under || []).filter(u => !erSkjult(u.id));
+    if (m.under && !synligeUnder.length) return '';
     const harUnder = synligeUnder.length > 0 && !gruppeLast;
     const erAktiv = aktiv === m.id || (forelder === m.id && (gruppeLast || !apne.has(m.id)));
     const laasIkon = '';
@@ -324,11 +336,13 @@ function tegnMeny() {
     if (harUnder) h += `<div class="sub ${apne.has(m.id) ? 'vis' : ''}">` + synligeUnder.map(u =>
       `<button class="si ${aktiv === u.id ? 'aktiv' : ''}" data-id="${u.id}">${u.navn}</button>`).join('') + '</div>';
     return h;
-  }).join('');
+  }).filter(Boolean);
+  /* en seksjonsoverskrift uten noe under seg vises ikke */
+  $('#nav').innerHTML = deler.filter((h, i) => !h.startsWith('<div class="seksjon">') || (deler[i + 1] && !deler[i + 1].startsWith('<div class="seksjon">'))).join('');
 }
 
 function apneSide(id, { tegn = true } = {}) {
-  if (!SIDER[id]) id = 'hjem';
+  if (!SIDER[id] || erSkjult(id)) id = 'hjem';
   if (!faner.includes(id)) faner.push(id);
   aktiv = id;
   const f = SIDER[id].forelder; if (f && !erLast(id)) apne.add(f.id);
@@ -358,6 +372,7 @@ function tegnFaner() {
 
 /* Tegner aktiv side på nytt. Kalles etter endringer i data. */
 function visSide() {
+  if (erSkjult(aktiv)) { faner = faner.filter(f => !erSkjult(f)); if (!faner.length) faner = ['hjem']; aktiv = 'hjem'; tegnMeny(); tegnFaner(); }
   const el = $('#innhold');
   const s = SIDER[aktiv];
   const scroll = el.scrollTop;

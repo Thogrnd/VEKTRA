@@ -33,7 +33,7 @@ registrer('hjem', el => {
 
   el.innerHTML = sidehode(`${hilsen}${d.innst.navn ? ', ' + d.innst.navn.split(' ')[0] : ''}!`, 'Status for klassene, prosjektene, arbeidsmiljøet og risikoarbeidet.') +
     `<div class="grid">
-      ${opplast ? nokkel('Elever', elever, `${d.klasser.length} klasser · ${d.laerere.length} lærere`, 'elev', 'gronn', 'reg-klasser') : nokkel('Register', '🔒', 'Krever lærerpassord', 'elev', 'gronn', 'reg-klasser')}
+      ${d.innst.rolle !== 'elev' ? nokkel('Elever', elever, `${d.klasser.length} klasser · ${d.laerere.length} lærere`, 'elev', 'gronn', 'reg-klasser') : ''}
       ${nokkel('Aktive prosjekter', aktive.length, forsinket ? `${forsinket} forsinket` : 'Ingen forsinket', 'prosjekt', 'lilla', 'lp-prosjekter')}
       ${nokkel('Åpne avvik', apneAvvik.length, utstyrForfalt ? `${utstyrForfalt} utstyr må kontrolleres` : 'Arbeidsmiljø', 'arbeid', 'oransje', 'am-avvik')}
       ${nokkel('Åpne risikotiltak', apneTiltak.length, `${tiltak.length - apneTiltak.length} av ${tiltak.length} gjennomført`, 'risiko', 'rosa', 'hms-risiko')}

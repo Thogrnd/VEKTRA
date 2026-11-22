@@ -324,6 +324,11 @@ ipcMain.handle('od:velgElevmappe', async () => {
   catch (err) { return { mappe, feil: 'Fant ikke nøkkelfila i mappen. Velg mappen med navnet ditt, ikke en mappe inni den.' }; }
 });
 
+// Eleven leser nøkkelfila på nytt (navn, klasse og hvilke moduler læreren har valgt)
+ipcMain.handle('od:lesNokkel', (e, elevmappe) => {
+  try { return JSON.parse(fs.readFileSync(path.join(elevmappe, NOKKELFIL), 'utf8')); } catch (err) { return null; }
+});
+
 // Eleven leverer: loggfila og videoene legges i «Til lærer» i elevmappen
 ipcMain.handle('od:lever', (e, elevmappe, { filnavn, innhold, media }) => {
   try {

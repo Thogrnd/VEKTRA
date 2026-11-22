@@ -21,6 +21,14 @@ function odOppsett() {
    Den private OneDrive-mappen heter bare «OneDrive», og der skal elevdata aldri ligge. */
 const odErJobbkonto = sti => /(^|[\\/])OneDrive\s*[-–]\s*[^\\/]+([\\/]|$)/i.test(String(sti || ''));
 const OD_IKKE_JOBB = 'Mappen ligger ikke på OneDrive-kontoen på jobb. Elevdata skal bare ligge der. Velg en mappe under «OneDrive – Østfold fylkeskommune» (eller skolens OneDrive). Finnes den ikke på denne PC-en, er jobbkontoen ikke logget inn i OneDrive her.';
+/* Hvilke moduler eleven skal se: unntak for eleven, ellers klassens valg, ellers alle (null) */
+function odModulerFor(e) {
+  const m = D().onedrive?.moduler || {};
+  if (Array.isArray(m.elever?.[e.id])) return m.elever[e.id];
+  if (Array.isArray(m.klasser?.[e.klasseId])) return m.klasser[e.klasseId];
+  return null;
+}
+const odModulNavn = id => (MENY.find(m => m.id === id) || {}).navn || id;
 const odElevRel = id => (D().onedrive?.mapper || {})[id] || '';
 const odErKoblet = () => !!(D().innst.rolle === 'elev' && D().innst.elevmappe && api && api.odLever);
 
@@ -38,6 +46,7 @@ function odLaererKortHtml() {
       <button class="btn ${o.rot ? 'sek' : ''}" id="od-velg">${o.rot ? 'Bytt mappe …' : 'Velg mappe …'}</button>
       ${o.rot ? `<button class="btn" id="od-lag" ${odErJobbkonto(o.rot) ? '' : 'disabled'}>Lag OneDrive-mapper</button>
       <button class="btn sek" id="od-deling" ${antall ? '' : 'disabled'}>Deling og e-post …</button>
+      <button class="btn sek" id="od-moduler" ${antall ? '' : 'disabled'}>Moduler for elever …</button>
       <button class="btn sek" id="od-apne">Åpne mappen</button>` : ''}
     </div>`, 's6 gronn');
 }
@@ -55,6 +64,7 @@ function odKoblLaererKort(el) {
   const lag = $('#od-lag', el); if (lag) lag.onclick = odLagMapper;
   const del = $('#od-deling', el); if (del) del.onclick = () => odDelingsliste();
   const ap = $('#od-apne', el); if (ap) ap.onclick = () => api.odApne(odOppsett().rot, '');
+  const mo = $('#od-moduler', el); if (mo) mo.onclick = odModulerDialog;
 }
 
 /* ============ Lærer: lag mappene ============ */
@@ -78,7 +88,7 @@ function odPlan(bareNye = false) {
         if (Object.values(o.mapper).includes(r) || Object.values(rel).includes(r)) { hoppet.push(`${e.navn} (${k.navn})`); continue; }
       }
       mapper.push(r, `${r}/Elevdata`, `${r}/Til lærer`, `${r}/Fra lærer`);
-      nokler.push({ rel: r, innhold: JSON.stringify({ type: 'vektra-elev', versjon: 1, id: e.id, navn: e.navn, klasse: k.navn, skolear: o.skolear, laerer: d.innst.navn, laget: new Date().toISOString() }, null, 1) });
+      nokler.push({ rel: r, innhold: JSON.stringify({ type: 'vektra-elev', versjon: 1, id: e.id, navn: e.navn, klasse: k.navn, skolear: o.skolear, laerer: d.innst.navn, moduler: odModulerFor(e), laget: new Date().toISOString() }, null, 1) });
       rel[e.id] = r;
     }
   }
@@ -109,6 +119,55 @@ async function odLagManglende() {
   Object.assign(o.mapper, rel); Lager.lagre();
   const navn = Object.keys(rel).map(personNavn);
   toast(`OneDrive-mappe er laget for ${navn.join(', ')}. Husk å dele den med eleven (Innstillinger → Deling og e-post).`);
+}
+
+/* ============ Lærer: velg moduler for elevene ============ */
+function odModulerDialog() {
+  const o = odOppsett();
+  if (!o.moduler) o.moduler = { klasser: {}, elever: {} };
+  const kopi = JSON.parse(JSON.stringify(o.moduler));
+  const klasser = sorterteKlasser().filter(k => klassensElever(k.id).some(e => o.mapper[e.id]));
+  const boks = (sti, id, liste) => `<label class="sjekk" style="display:inline-flex;margin:0 12px 6px 0"><input type="checkbox" data-sti="${sti}" data-mod="${id}" ${!Array.isArray(liste) || liste.includes(id) ? 'checked' : ''}>${esc(odModulNavn(id))}</label>`;
+  const m = modal(`<h2>Moduler for elever</h2>
+    <p class="smaa" style="margin-top:0">Velg hvilke moduler elevene ser i VEKTRA. Lærersidene (Register, Klassekart, Lærerens oversikt og Kompetanse og opplæring) er alltid skjult for elever. Endringen gjelder neste gang eleven starter VEKTRA.</p>
+    <div id="odm-innhold"></div>
+    <div class="knapper"><button class="btn sek" id="odm-avbryt">Avbryt</button><button class="btn" id="odm-lagre">Lagre</button></div>`, { bred: true });
+  const tegn = () => {
+    const unntak = Object.keys(kopi.elever);
+    $('#odm-innhold', m.el).innerHTML = (klasser.map(k => `<div class="kort" style="margin-bottom:10px;padding:12px 14px"><b>${esc(k.navn)}</b> <span class="smaa">hele klassen</span><div style="margin-top:8px">${ELEV_MODULER.map(id => boks('k:' + k.id, id, kopi.klasser[k.id])).join('')}</div></div>`).join('')
+      || '<div class="tom">Ingen elever har OneDrive-mappe ennå.</div>') +
+      `<h3 style="margin:16px 0 6px">Unntak for enkeltelever</h3>
+      ${unntak.map(id => `<div class="kort" style="margin-bottom:8px;padding:10px 14px"><b>${esc(personNavn(id))}</b> <span class="smaa">${esc(klasseNavn(finnPerson(id)?.klasseId))}</span> <button class="lenkeknapp" data-fjern="${id}" style="float:right">Fjern unntak</button>
+        <div style="margin-top:8px">${ELEV_MODULER.map(mod => boks('e:' + id, mod, kopi.elever[id])).join('')}</div></div>`).join('') || '<p class="smaa">Ingen unntak. Alle elever ser det som er valgt for klassen.</p>'}
+      <div class="verktoylinje"><select id="odm-elev" style="width:auto"><option value="">Legg til unntak for elev …</option>${klasser.map(k => `<optgroup label="${esc(k.navn)}">${klassensElever(k.id).filter(e => o.mapper[e.id] && !kopi.elever[e.id]).map(e => `<option value="${e.id}">${esc(e.navn)}</option>`).join('')}</optgroup>`).join('')}</select></div>`;
+    $$('[data-sti]', m.el).forEach(c => c.onchange = () => {
+      const [t, id] = c.dataset.sti.split(':'); const mal = t === 'k' ? kopi.klasser : kopi.elever;
+      const valgte = $$(`[data-sti="${c.dataset.sti}"]`, m.el).filter(x => x.checked).map(x => x.dataset.mod);
+      mal[id] = valgte.length === ELEV_MODULER.length ? null : valgte;
+      if (mal[id] === null && t === 'k') delete mal[id];
+    });
+    $$('[data-fjern]', m.el).forEach(b => b.onclick = () => { delete kopi.elever[b.dataset.fjern]; tegn(); });
+    $('#odm-elev', m.el).onchange = e => { const id = e.target.value; if (!id) return; const el = finnPerson(id); kopi.elever[id] = odModulerForKopi(el, kopi) || [...ELEV_MODULER]; tegn(); };
+  };
+  tegn();
+  $('#odm-avbryt', m.el).onclick = m.lukk;
+  $('#odm-lagre', m.el).onclick = async () => {
+    Object.keys(kopi.elever).forEach(id => { if (kopi.elever[id] === null) kopi.elever[id] = [...ELEV_MODULER]; });
+    o.moduler = kopi; Lager.lagre();
+    const ok = await odSkrivNokler();
+    m.lukk();
+    if (ok) toast('Modulvalget er lagret. Elevene får det neste gang de starter VEKTRA.');
+  };
+}
+const odModulerForKopi = (e, kopi) => Array.isArray(kopi.klasser[e?.klasseId]) ? [...kopi.klasser[e.klasseId]] : null;
+/* Skriver nøkkelfilene på nytt for alle elever som har mappe (navn, klasse og moduler) */
+async function odSkrivNokler() {
+  const o = D().onedrive;
+  if (!odFinnes() || !o?.rot || !odErJobbkonto(o.rot)) { toast('Velg VEKTRA-mappen på OneDrive først.', true); return false; }
+  const { nokler } = odPlan();
+  const r = await api.odLagMapper(o.rot, { mapper: [], nokler: nokler.filter(n => Object.values(o.mapper).includes(n.rel)) });
+  if (!r.ok) { toast('Kunne ikke oppdatere elevmappene: ' + r.feil, true); return false; }
+  return true;
 }
 
 /* ============ Lærer: liste for deling ============ */
@@ -161,14 +220,14 @@ async function odKobleElevmappe() {
   const n = r.nokkel || {};
   if (n.type !== 'vektra-elev' || !n.navn) { toast('Dette er ikke en elevmappe fra VEKTRA.', true); return; }
   if (!await bekreft(`Du blir koblet til som <b>${esc(n.navn)}</b> i <b>${esc(n.klasse || '')}</b>.<br><br>${r.harData ? 'Det ligger allerede en loggbok i elevmappen (for eksempel fra en annen PC). VEKTRA bruker den.' : 'Loggboka di blir kopiert til elevmappen på OneDrive. Den er da trygg selv om du bytter PC. Originalen blir liggende på denne PC-en.'}`, { ja: 'Koble til', tittel: 'Koble til elevmappen' })) return;
-  const settProfil = () => { const i = D().innst; Object.assign(i, { navn: n.navn, klasse: n.klasse || '', rolle: 'elev', elevId: n.id, elevmappe: r.mappe, fullfortOppstart: true }); };
+  const settProfil = () => { const i = D().innst; Object.assign(i, { navn: n.navn, klasse: n.klasse || '', rolle: 'elev', elevId: n.id, elevmappe: r.mappe, moduler: Array.isArray(n.moduler) ? n.moduler : null, fullfortOppstart: true }); };
   settProfil();
   await Lager.skrivNa();
   const modus = r.harData ? 'bruk' : 'kopier';
   const res = await api.byttMappe(r.elevdata, modus, JSON.stringify(D()));
   if (!res.ok) { toast('Kunne ikke koble til: ' + res.feil, true); return; }
   if (modus === 'bruk' && res.tekst) { Lager.d = migrer(JSON.parse(res.tekst)); settProfil(); settTema(D().innst.tema); }
-  Lager.lagre(); oppdaterProfil(); visSide();
+  Lager.lagre(); oppdaterProfil(); tegnMeny(); visSide();
   toast(`Koblet til elevmappen som ${n.navn}.`);
   odLesTilbakemeldinger();
 }
@@ -220,5 +279,14 @@ async function odHentInnleveringer() {
 }
 const odLaererKlar = () => odFinnes() && !!D().onedrive?.rot && Object.keys(D().onedrive.mapper || {}).length > 0;
 
-/* Elevens PC: se etter tilbakemeldinger ved oppstart og hvert annet minutt */
-setTimeout(() => { odLesTilbakemeldinger(); setInterval(odLesTilbakemeldinger, 120000); }, 3000);
+/* Elevens PC: les modulvalget fra nøkkelfila (læreren kan ha endret det) */
+async function odOppdaterModuler() {
+  if (!odErKoblet() || !api.odLesNokkel) return;
+  const n = await api.odLesNokkel(D().innst.elevmappe);
+  if (!n || n.type !== 'vektra-elev') return;
+  const i = D().innst, ny = Array.isArray(n.moduler) ? n.moduler : null;
+  if (JSON.stringify(i.moduler ?? null) === JSON.stringify(ny)) return;
+  i.moduler = ny; Lager.lagre(); tegnMeny(); visSide();
+}
+/* Elevens PC: se etter modulvalg og tilbakemeldinger ved oppstart og hvert annet minutt */
+setTimeout(() => { odOppdaterModuler(); odLesTilbakemeldinger(); setInterval(() => { odOppdaterModuler(); odLesTilbakemeldinger(); }, 120000); }, 1500);

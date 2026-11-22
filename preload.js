@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('klarApi', {
   odApne: (rot, rel) => ipcRenderer.invoke('od:apne', rot, rel),
   odVelgElevmappe: () => ipcRenderer.invoke('od:velgElevmappe'),
   odLever: (elevmappe, o) => ipcRenderer.invoke('od:lever', elevmappe, o),
+  odLesNokkel: (elevmappe) => ipcRenderer.invoke('od:lesNokkel', elevmappe),
   odLesFraLaerer: (elevmappe) => ipcRenderer.invoke('od:lesFraLaerer', elevmappe),
   odHentInnleveringer: (rot, elevmapper) => ipcRenderer.invoke('od:hentInnleveringer', rot, elevmapper),
   odSkrivTilElev: (rot, rel, filnavn, innhold) => ipcRenderer.invoke('od:skrivTilElev', rot, rel, filnavn, innhold),

@@ -54,11 +54,11 @@ function sokTreff(q) {
   q = q.toLowerCase();
   const ut = [];
   for (const [id, s] of Object.entries(SIDER)) {
-    if (s.laerer && !opplast) continue;
+    if (erSkjult(id)) continue;
     if (s.navn.toLowerCase().includes(q) || (s.forelder && s.forelder.navn.toLowerCase().includes(q))) ut.push({ t: s.navn, u: s.forelder ? s.forelder.navn : 'Side', id });
   }
   const d = D();
-  if (opplast) {
+  if (d.innst.rolle !== 'elev') {
     d.elever.forEach(e => { if (e.navn.toLowerCase().includes(q)) ut.push({ t: e.navn, u: 'Elev i ' + klasseNavn(e.klasseId), id: 'reg-klasser', k: e.klasseId }); });
     d.laerere.forEach(l => { if (l.navn.toLowerCase().includes(q)) ut.push({ t: l.navn, u: 'Lærer', id: 'reg-laerere' }); });
   }
