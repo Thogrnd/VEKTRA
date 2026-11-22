@@ -32,6 +32,7 @@ registrer('reg-klasser', el => {
           <button class="lenkeknapp" id="gi-navn">Gi klassen nytt navn</button>
           <button class="lenkeknapp fare" id="slett-klasse">Slett klasse</button>
         </div>
+        ${typeof odRegisterLinje === 'function' ? odRegisterLinje(k) : ''}
         ${dupl.size ? `<p class="smaa" style="color:var(--pink)">To eller flere elever har samme navn. Skriv dem forskjellig, for eksempel «Ola H.» og «Ola B.», så det blir tydelig hvem som er hvem.</p>` : ''}
         ${elever.length ? `<table><thead><tr><th style="width:60px">Bilde</th><th>Navn</th><th>E-post</th><th style="width:150px">Klasse</th><th style="width:150px"></th></tr></thead><tbody>
           ${elever.map(e => `<tr data-e="${e.id}" class="${dupl.has(e.id) ? 'dupl' : ''}">
@@ -72,6 +73,7 @@ registrer('reg-klasser', el => {
     d.oppsett = d.oppsett.filter(o => o.klasseId !== k.id);
     regValgtKlasse = null; Lager.lagre(); visSide();
   };
+  if (typeof odKoblRegister === 'function') odKoblRegister(el);
   $('#imp-tekst', el).onclick = () => importerTekst(k);
   $('#imp-mappe', el).onclick = async () => importerBilder(k, await apneBildemappe());
   $('#imp-bilder', el).onchange = e => importerBilder(k, [...e.target.files].map(f => ({ navn: f.name, kilde: f })));
